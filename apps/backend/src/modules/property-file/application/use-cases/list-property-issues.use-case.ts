@@ -19,7 +19,11 @@ export class ListPropertyIssuesUseCase {
 
   async execute(command: ListPropertyIssuesCommand): Promise<ListPropertyIssuesResponse> {
     const { actor, query } = command;
-    const listScope = await this.scope.resolveReadListScope(actor, query);
+    const listScope = await this.scope.resolveReadListScope(actor, query, () =>
+      query.appointmentId
+        ? this.fileRepo.findAppointmentTenantId(query.appointmentId)
+        : this.fileRepo.findPropertyTenantId(query.propertyId!),
+    );
 
     const issues = query.appointmentId
       ? await this.issueRepo.listByAppointment(query.appointmentId, listScope.tenantId)

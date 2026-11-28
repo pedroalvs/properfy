@@ -109,8 +109,6 @@ function makeOffer(overrides: Partial<MarketplaceOffer> = {}): MarketplaceOffer 
     groupSize: 3,
     scheduledDate: '2026-08-01',
     timeWindow: '08:00-12:00',
-    priorityMode: 'NONE',
-    priorityExpiresAt: null,
     suburbs: ['Sydney'],
     payoutEstimate: 250,
     appointmentCount: 3,

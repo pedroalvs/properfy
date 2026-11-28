@@ -48,6 +48,14 @@ export const AGENCY_TENANT_NOTIFICATIONS_DISABLED = 'AGENCY_TENANT_NOTIFICATIONS
  */
 export const TEMPLATE_INACTIVE = 'TEMPLATE_INACTIVE';
 
+/**
+ * Reason recorded when a legacy MARKETING-class notification reaches the send
+ * pipeline. Marketing is never dispatched (there is no opt-in collection, and the
+ * consent opt-out feature was removed — decision 45), so the row is a terminal
+ * SKIPPED with this distinct reason. It is NOT an opt-out (`SKIPPED_OPT_OUT`).
+ */
+export const MARKETING_NOT_SENT = 'MARKETING_NOT_SENT';
+
 /** Prefix shared by recoverable agency-forward failure reasons. */
 export const AGENCY_FORWARD_FAILURE_REASON_PREFIX = 'AGENCY_FORWARD_';
 

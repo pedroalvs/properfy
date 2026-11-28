@@ -14,6 +14,7 @@ function logger(): any { const l: any = { info: vi.fn(), warn: vi.fn(), error: v
 const INSPECTOR_ID = '11111111-1111-1111-1111-111111111111';
 const A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+const C = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 const DATE = '2026-11-05';
 const NOW = new Date('2026-11-04T09:00:00.000Z');
 
@@ -23,7 +24,7 @@ function candidate(id: string, lng: number): DayPlanCandidate {
     tenantTimezone: 'Australia/Sydney', scheduledDate: DATE, timeSlotStart: '08:00', timeSlotEnd: '17:00',
     windowStartAt: new Date('2026-11-04T21:00:00Z'), windowEndAt: new Date('2026-11-05T06:00:00Z'),
     durationMinutes: 45, serviceTypeName: 'Routine', lat: -33.88, lng, propertyAddress: 'x', suburb: 'Surry Hills',
-    keyRequired: false, meetingLocation: null, rentalTenantConfirmationStatus: 'CONFIRMED', contacts: [],
+    keyRequired: false, meetingLocation: null, rentalTenantConfirmationStatus: 'CONFIRMED', rentalTenantNote: null, contacts: [],
     startedAt: null, finishedAt: null, abandonedAt: null,
   };
 }
@@ -98,6 +99,34 @@ describe('SaveDayPlanOrderUseCase', () => {
     // Plan B: reorder persists no routing result but the response still carries on-demand geometry.
     expect(res.geometry).not.toBeNull();
     expect(res).not.toHaveProperty('routingInput');
+  });
+
+  it('keeps the optimizer suggestion after a manual reorder (D-06)', async () => {
+    const { getMy, save } = wire(reader, repo);
+    const plan = await getMy.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    const suggested = [...plan.suggestedOrder];
+    const worse = [...suggested].reverse();
+    const res = await save.execute({ inspectorId: INSPECTOR_ID, actorUserId: 'u1', date: DATE, appointmentIds: worse, basedOnVersion: plan.version });
+    // The applied (manual) order is the one the inspector saved…
+    expect(res.manualOrder).toBe(true);
+    expect(res.stops.filter((s) => !s.executed).map((s) => s.appointmentId)).toEqual(worse);
+    // …but the "suggested" baseline still points at the optimizer's order, so the
+    // app keeps comparing against it ("+N min vs. suggested") instead of itself.
+    expect(res.suggestedOrder).toEqual(suggested);
+  });
+
+  it('regenerates the suggestion when the reorderable set changes', async () => {
+    const { getMy, save } = wire(reader, repo);
+    const plan = await getMy.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    await save.execute({
+      inspectorId: INSPECTOR_ID, actorUserId: 'u1', date: DATE,
+      appointmentIds: [...plan.suggestedOrder].reverse(), basedOnVersion: plan.version,
+    });
+    // A new appointment joins the day: the stored suggestion (old 2-stop set) must
+    // not be frozen — a recompute covers the current set, not the stale order.
+    reader.candidates = [candidate(A, 151.1), candidate(B, 151.2), candidate(C, 151.3)];
+    const refreshed = await getMy.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    expect([...refreshed.suggestedOrder].sort()).toEqual([A, B, C].sort());
   });
 
   it('409s on a stale basedOnVersion', async () => {

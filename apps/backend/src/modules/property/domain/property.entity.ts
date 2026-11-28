@@ -1,7 +1,34 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import { buildNormalizedAddressKey } from '../../../shared/domain/normalize-address';
+import { dropDuplicateLine2 } from '../../../shared/domain/geocoding-address';
 import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
-import type { GeocodingResult } from './geocoding.service';
+import { type GeocodingResult, classifyGeocodingResult } from './geocoding.service';
+
+/** Structured address fields that compose the geocoder query. */
+export interface PropertyAddressFields {
+  street: string;
+  addressLine2: string | null;
+  suburb: string;
+  state: string;
+  postcode: string;
+  country: string;
+}
+
+/**
+ * The single source of truth for the geocoding query string. Used by
+ * `PropertyEntity.fullAddress` (→ the async `GeocodeWorker`) AND the synchronous
+ * create/update geocode, so the query can never diverge between the two paths.
+ */
+export function propertyFullAddress(f: PropertyAddressFields): string {
+  const parts = [f.street];
+  // Route L2 through the single shared dedup helper so this query stays
+  // identical to formatGeocodingQuery(entity) (A≡B lock) and drops a Line 2
+  // that merely repeats the street.
+  const line2 = dropDuplicateLine2(f.street, f.addressLine2);
+  if (line2) parts.push(line2);
+  parts.push(f.suburb, f.state, f.postcode, f.country);
+  return parts.join(', ');
+}
 
 export interface PropertyProps {
   id: string;
@@ -100,8 +127,9 @@ export class PropertyEntity extends BaseEntity {
 
   /**
    * Apply the outcome of a geocoding lookup to this entity. A coordinate result
-   * sets SUCCESS; a null result (address not found) sets FAILED. Used by the
-   * create flow to geocode synchronously before persisting.
+   * that passes rule A ({@link classifyGeocodingResult}) sets SUCCESS; a null
+   * result (address not found) or a too-coarse / low-relevance result sets
+   * FAILED. Used by the create flow to geocode synchronously before persisting.
    *
    * `options.permanent` stamps `geocodedPermanentlyAt` (the coordinate came from
    * a permanent geocode, Mapbox terms) and clears any failure code. A SUCCESS
@@ -109,7 +137,8 @@ export class PropertyEntity extends BaseEntity {
    * future non-permanent caller cannot stamp the marker by accident.
    */
   applyGeocodingResult(result: GeocodingResult | null, options?: { permanent?: boolean }): void {
-    if (result) {
+    const decision = result ? classifyGeocodingResult(result, this.suburb, this.postcode) : null;
+    if (result && decision?.accepted) {
       this.lat = result.lat;
       this.lng = result.lng;
       this.geocodingStatus = 'SUCCESS';
@@ -122,14 +151,16 @@ export class PropertyEntity extends BaseEntity {
       this.lng = null;
       this.geocodingStatus = 'FAILED';
       this.geocodedPermanentlyAt = null;
+      // A rejected result (too coarse / low relevance) records its reason;
+      // a null result (address not found) leaves the failure code untouched.
+      if (decision && !decision.accepted) {
+        this.geocodingFailureCode = decision.reason;
+      }
     }
   }
 
   get fullAddress(): string {
-    const parts = [this.street];
-    if (this.addressLine2) parts.push(this.addressLine2);
-    parts.push(this.suburb, this.state, this.postcode, this.country);
-    return parts.join(', ');
+    return propertyFullAddress(this);
   }
 
   /** Derived, never stale within a loaded instance — see `buildNormalizedAddressKey`

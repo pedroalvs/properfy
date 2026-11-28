@@ -49,10 +49,6 @@ export const tenantSettingsSchema = z.object({
   allowClientRescheduling: z.boolean().default(true),
   allowClientUserManagement: z.boolean().default(false),
 
-  // Inspector offer config
-  priorityOfferHours: z.number().int().min(1).max(168).default(24),
-  inspectorOfferRadiusKm: z.number().min(0).default(2),
-
   // CL_USER granular permissions
   clUserPermissions: z.array(z.enum([
     'create_appointments',

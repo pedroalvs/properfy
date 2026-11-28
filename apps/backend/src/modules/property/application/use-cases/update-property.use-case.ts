@@ -8,9 +8,16 @@ import {
   PropertyNotFoundError,
   PropertyAddressConflictError,
   BranchInactiveError,
+  PropertyAddressNotVerifiedError,
 } from '../../domain/property.errors';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
+import type { IGeocodingService, GeocodingResult } from '../../domain/geocoding.service';
+import { classifyGeocodingResult } from '../../domain/geocoding.service';
+import { propertyFullAddress } from '../../domain/property.entity';
+import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { sendJob } from '../../../../shared/infrastructure/queue';
+import { isSameGeocodingAddress, type GeocodableAddress } from '../../../../shared/domain/geocoding-address';
+import { buildNormalizedAddressKey } from '../../../../shared/domain/normalize-address';
 
 export interface UpdatePropertyInput {
   propertyId: string;
@@ -64,14 +71,14 @@ export interface UpdatePropertyOutput {
   updatedAt: Date;
 }
 
-const ADDRESS_FIELDS = ['street', 'suburb', 'postcode', 'state', 'country'];
-
 export class UpdatePropertyUseCase {
   constructor(
     private readonly propertyRepo: IPropertyRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
     private readonly logger?: Logger,
+    private readonly geocodingService?: IGeocodingService,
+    private readonly syncGeocodeTimeoutMs: number = GEOCODE_SYNC_TIMEOUT_MS,
   ) {}
 
   /** Compare an incoming coordinate against a stored one at 7 decimal places
@@ -158,23 +165,54 @@ export class UpdatePropertyUseCase {
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.rulesJson !== undefined) updateData.rulesJson = data.rulesJson;
 
-    // Check if address fields changed
-    const addressChanged = ADDRESS_FIELDS.some(
+    // Whether the geocoding address actually CHANGED vs the stored one (V10 fix,
+    // mirrors update-branch/update-inspector). The property form always re-sends
+    // the pre-filled address fields, so "some field present in the body" is true on
+    // every screen edit — using that as `addressChanged` re-geocoded (and could 422)
+    // an unchanged address. Compare the effective address to the stored one via the
+    // shared `isSameGeocodingAddress` helper (street, addressLine2, suburb, state,
+    // postcode, country) instead.
+    const storedAddress: GeocodableAddress = {
+      street: property.street,
+      addressLine2: property.addressLine2,
+      suburb: property.suburb,
+      state: property.state,
+      postcode: property.postcode,
+      country: property.country,
+    };
+    const effectiveGeoAddress: GeocodableAddress = {
+      street: data.street ?? property.street,
+      addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
+      suburb: data.suburb ?? property.suburb,
+      state: data.state ?? property.state,
+      postcode: data.postcode ?? property.postcode,
+      country: data.country ?? property.country,
+    };
+    const addressChanged = !isSameGeocodingAddress(storedAddress, effectiveGeoAddress);
+    // Whether the request BODY carried any address field (the form re-sends them).
+    // Used only to scope the unlocated-recovery re-enqueue to an address re-send,
+    // exactly as pre-V-1 did — a notes-only edit of a FAILED row must not re-geocode.
+    const addressPresentInBody = ['street', 'addressLine2', 'suburb', 'postcode', 'state', 'country'].some(
       (field) => (data as Record<string, unknown>)[field] !== undefined,
     );
 
-    // When the address changes, pre-check uniqueness against the
-    // `properties_normalized_address_active_unique` partial unique index —
-    // excluding this property itself — so a conflict is a clean 409 instead
-    // of an uncaught P2002 surfacing as a 500.
-    if (addressChanged) {
-      const effectiveAddress = {
-        street: data.street ?? property.street,
-        addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
-        suburb: data.suburb ?? property.suburb,
-        state: data.state ?? property.state,
-        postcode: data.postcode ?? property.postcode,
-      };
+    const effectiveAddress = {
+      street: data.street ?? property.street,
+      addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
+      suburb: data.suburb ?? property.suburb,
+      state: data.state ?? property.state,
+      postcode: data.postcode ?? property.postcode,
+    };
+    // Pre-check uniqueness against the `properties_normalized_address_active_unique`
+    // partial unique index — excluding this property itself — so a conflict is a
+    // clean 409 instead of an uncaught P2002/500. Gate on the normalized KEY
+    // changing, NOT on `addressChanged` (the geocoding query): the Line-2 dedup can
+    // drop a street-repeating Line 2 from the query (addressChanged=false) while
+    // `buildNormalizedAddressKey` still includes that Line 2 verbatim, so the stored
+    // key — and thus a possible collision — changes independently of re-geocoding.
+    const keyChanged =
+      buildNormalizedAddressKey(storedAddress) !== buildNormalizedAddressKey(effectiveAddress);
+    if (keyChanged) {
       const existingByAddress = await this.propertyRepo.findByNormalizedAddress(property.tenantId, effectiveAddress);
       if (existingByAddress && existingByAddress.id !== property.id) {
         throw new PropertyAddressConflictError();
@@ -233,8 +271,71 @@ export class UpdatePropertyUseCase {
     // An incomplete pair (one field present, the other absent or null) is ignored
     // entirely — handled by falling through neither branch above.
 
-    // Address change re-geocodes (unless a MANUAL override was just set — it wins).
+    // Geocoding on update (V-1 + V10). Three cases, when no MANUAL pin was just set:
+    //   - address CHANGED → geocode SYNCHRONOUSLY and validate (rule A) before
+    //     writing: accepted → coords + SUCCESS now; rejected/null → 422, nothing
+    //     written; timeout/transient error (or no geocoder wired) → keep PENDING and
+    //     let the async worker finish it (V4 "provider down").
+    //   - address UNCHANGED but the property is UNLOCATED (FAILED/PENDING, e.g. a
+    //     legacy row or a prior outage) → do NOT call the sync geocoder and NEVER
+    //     422; instead re-enqueue the async geocode worker as a recovery attempt.
+    //     This is exactly the PRE-V-1 behavior for an address-present edit (PENDING
+    //     + property.geocode job) and keeps the edit of other fields unblocked (V10).
+    //   - address UNCHANGED and LOCATED (SUCCESS/MANUAL) → do NOTHING: keep the
+    //     stored coordinates + marker, call no geocoder (the common screen edit).
     if (!manualSet && addressChanged) {
+      updateData.geocodedPermanentlyAt = null;
+      updateData.geocodingFailureCode = null;
+
+      const query = propertyFullAddress({
+        street: data.street ?? property.street,
+        addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
+        suburb: data.suburb ?? property.suburb,
+        state: data.state ?? property.state,
+        postcode: data.postcode ?? property.postcode,
+        country: data.country ?? property.country,
+      });
+
+      let outcome: GeocodingResult | null | undefined;
+      if (this.geocodingService) {
+        try {
+          outcome = await geocodeWithTimeout(this.geocodingService, query, {
+            timeoutMs: this.syncGeocodeTimeoutMs,
+          });
+        } catch (err) {
+          this.logger?.warn({ propertyId, err }, 'property.sync_geocode_failed_falling_back');
+        }
+      }
+
+      if (outcome === null) {
+        throw new PropertyAddressNotVerifiedError('NOT_FOUND');
+      }
+      if (outcome !== undefined) {
+        const decision = classifyGeocodingResult(
+          outcome,
+          data.suburb ?? property.suburb,
+          data.postcode ?? property.postcode,
+        );
+        if (!decision.accepted) {
+          throw new PropertyAddressNotVerifiedError(decision.reason);
+        }
+        updateData.lat = outcome.lat;
+        updateData.lng = outcome.lng;
+        updateData.geocodingStatus = 'SUCCESS';
+        updateData.geocodedPermanentlyAt = new Date();
+      } else {
+        updateData.geocodingStatus = 'PENDING';
+        statusToPending = true;
+      }
+    } else if (
+      !manualSet &&
+      addressPresentInBody &&
+      (property.geocodingStatus === 'FAILED' || property.geocodingStatus === 'PENDING')
+    ) {
+      // Address RE-SENT unchanged on an unlocated property: preserve the pre-V-1
+      // async recovery (PENDING + property.geocode job). Never blocks the edit,
+      // never a 422, never calls the sync geocoder. Gated on addressPresentInBody so
+      // a notes-only edit of a FAILED row still does nothing, exactly as pre-V-1.
       updateData.geocodingStatus = 'PENDING';
       updateData.geocodedPermanentlyAt = null;
       updateData.geocodingFailureCode = null;

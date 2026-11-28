@@ -22,12 +22,19 @@ primary_region = 'iad'
   PORT = '3000'
   LOG_LEVEL = 'info'
   JWT_ACCESS_TOKEN_TTL_MINUTES = '60'
+  # Supabase egress control: slow pg-boss job polling from the 2s default to 15s.
+  # DEV runs on the Free plan (5 GB egress/mo) and the ~30 queues polling 24/7
+  # are its dominant egress source. Jobs just start a few seconds later here.
+  PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS = '15'
 
 [http_service]
   internal_port = 3000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
+  # Idle-shutdown (min_machines_running = 0) deferred until after 2026-11-30:
+  # during the retest window the DEV machine must stay up so scheduled jobs run
+  # (19:30 Sydney publish, morning notice/sweep, rewards & bonus).
   min_machines_running = 1
   processes = ['app']
 

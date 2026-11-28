@@ -41,9 +41,6 @@ const envSchema = z.object({
 
   // Optional webhook signature secrets (skip validation when absent — dev mode)
   RESEND_WEBHOOK_SECRET: z.string().optional(),
-  // Fy agent outbound webhooks (env fallback; DB config via Integrations Hub wins)
-  FY_WEBHOOK_URL: z.string().optional(),
-  FY_WEBHOOK_SECRET: z.string().optional(),
 
   /** Comma-separated list of email addresses allowed as test-send recipients (FR-027a) */
   EMAIL_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),
@@ -114,6 +111,16 @@ const envSchema = z.object({
     .string()
     .regex(/^[a-z_][a-z0-9_]*$/, 'PGBOSS_SCHEMA must be a valid lowercase Postgres identifier')
     .optional(),
+
+  // Non-prod Supabase egress control: pg-boss polls each queue every
+  // `newJobCheckIntervalSeconds` (default 2s). With ~30 queues this constant
+  // 24/7 polling dominates egress on low-traffic DEV/STAGING, which raise it
+  // (e.g. 15). Unset ⇒ pg-boss keeps 2s (production stays responsive). The value
+  // is applied in queue.ts; validated here so a typo fails fast at boot.
+  PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: z.preprocess(
+    (v) => (v === undefined || (typeof v === 'string' && v.trim() === '') ? undefined : v),
+    z.coerce.number().int().min(1).optional(),
+  ),
 
   // F02-1: Web Push (VAPID). Distinct keys per environment; absent ⇒ push disabled and
   // critical inspector notices fall back to SMS (safe degradation).

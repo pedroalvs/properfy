@@ -55,9 +55,17 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-const mockUseFormOptions = vi.fn((..._args: unknown[]) => ({
-  options: [] as Array<{ value: string; label: string }>,
+// `items` is optional here so existing overrides that only return `{ options,
+// isLoading }` stay valid; the drawer's preset hook tolerates an absent list.
+type FormOptionsMockReturn = {
+  options: Array<{ value: string; label: string }>;
+  isLoading: boolean;
+  items?: unknown[];
+};
+const mockUseFormOptions = vi.fn<unknown[], FormOptionsMockReturn>((..._args) => ({
+  options: [],
   isLoading: false,
+  items: [],
 }));
 
 vi.mock('@/hooks/useFormOptions', () => ({
@@ -320,7 +328,7 @@ describe('AppointmentFormDrawer', () => {
     vi.clearAllMocks();
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
-    mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false }));
+    mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false, items: [] }));
     mockPost.mockResolvedValue({ data: { data: { id: 'apt-01', status: 'SCHEDULED' } }, error: null });
     // Default to AM user; individual tests override (e.g., OP cross-tenant regression below).
     mockUseAuth.mockReturnValue({
@@ -887,5 +895,195 @@ describe('AppointmentFormDrawer', () => {
         isPrimary: true,
       }),
     );
+  });
+});
+
+describe('AppointmentFormDrawer — Meeting Location presets (Access & Key)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSave.mockResolvedValue({ success: true });
+    mockValidate.mockReturnValue({});
+    mockUseAuth.mockReturnValue({
+      user: { id: 'usr-1', name: 'Admin', email: 'admin@test.com', role: 'AM', tenantId: 't-1' },
+      token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+    });
+  });
+
+  // Branch carries addressJson, property carries a structured address — both are
+  // already on the wire (see apps/web/CLAUDE.md §12). apt-01 has branch-1/prop-1.
+  function withAddressItems() {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/branches') {
+        return {
+          options: [{ value: 'branch-1', label: 'North Shore Office' }],
+          isLoading: false,
+          items: [
+            {
+              id: 'branch-1',
+              name: 'North Shore Office',
+              addressJson: { street: '1 Help St', suburb: 'Chatswood', state: 'NSW', postcode: '2067' },
+            },
+          ],
+        };
+      }
+      if (args[1] === '/v1/properties') {
+        return {
+          options: [{ value: 'prop-1', label: 'P-1 - 5/24 Belgrave St' }],
+          isLoading: false,
+          items: [
+            {
+              id: 'prop-1',
+              propertyCode: 'P-1',
+              street: '5/24 Belgrave St',
+              suburb: 'Kogarah',
+              state: 'NSW',
+              postcode: '2217',
+            },
+          ],
+        };
+      }
+      return { options: [], isLoading: false, items: [] };
+    });
+  }
+
+  it('edit mode opens as Custom with the stored text preserved', () => {
+    withAddressItems();
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    // The source select defaults to Custom, and the free-text field keeps the stored value.
+    expect(screen.getByLabelText('Meeting location source')).toHaveTextContent('Custom address');
+    expect(screen.getByLabelText('Meeting Location')).toHaveValue('Lobby');
+  });
+
+  it('selecting "At the property" fills the property address and sends it on save', async () => {
+    withAddressItems();
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    fireEvent.click(screen.getByText('At the property'));
+
+    const preview = await screen.findByTestId('meeting-location-preview');
+    expect(preview).toHaveTextContent('5/24 Belgrave St');
+    expect(preview).toHaveTextContent('Kogarah');
+    // The free-text input is replaced by the read-only preview.
+    expect(screen.queryByLabelText('Meeting Location')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(mockSave).toHaveBeenCalled());
+    const saved = mockSave.mock.calls[0][0] as { meetingLocation: string };
+    expect(saved.meetingLocation).toContain('5/24 Belgrave St');
+    expect(saved.meetingLocation).toContain('Kogarah');
+  });
+
+  it('selecting "At the agency office" fills the branch address', async () => {
+    withAddressItems();
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    fireEvent.click(screen.getByText('At the agency office'));
+
+    const preview = await screen.findByTestId('meeting-location-preview');
+    expect(preview).toHaveTextContent('1 Help St');
+
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(mockSave).toHaveBeenCalled());
+    const saved = mockSave.mock.calls[0][0] as { meetingLocation: string };
+    expect(saved.meetingLocation).toContain('1 Help St');
+  });
+
+  it('switching back to Custom keeps the resolved address as editable text', async () => {
+    withAddressItems();
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    fireEvent.click(screen.getByText('At the property'));
+    await screen.findByTestId('meeting-location-preview');
+
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    fireEvent.click(screen.getByText('Custom address'));
+
+    const input = screen.getByLabelText('Meeting Location');
+    expect((input as HTMLInputElement).value).toContain('5/24 Belgrave St');
+    fireEvent.change(input, { target: { value: 'Front gate' } });
+
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(mockSave).toHaveBeenCalled());
+    const saved = mockSave.mock.calls[0][0] as { meetingLocation: string };
+    expect(saved.meetingLocation).toBe('Front gate');
+  });
+
+  it('offers only Custom when no branch/property address is available (create mode)', () => {
+    mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false, items: [] }));
+    renderDrawer();
+
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    // "Custom address" also shows in the trigger, so assert on the listbox options.
+    expect(screen.getByRole('option', { name: 'Custom address' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'At the property' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'At the agency office' })).not.toBeInTheDocument();
+  });
+
+  it('leaves Key Location as a free-text field', () => {
+    withAddressItems();
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    // Key Location stays a plain text input (decision 3), unaffected by the presets.
+    expect(screen.getByLabelText('Key Location')).toHaveValue('Portaria');
+    expect(screen.queryByLabelText('Key location source')).not.toBeInTheDocument();
+  });
+
+  // Regression: a preset that degrades to Custom (its option disappears) must stick,
+  // so a later re-appearance of that preset never silently overwrites text the operator
+  // typed while in Custom. Branch A has an office address, Branch B does not.
+  it('does not overwrite typed Custom text when a degraded preset becomes available again', async () => {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') {
+        return { options: [{ value: 't-1', label: 'Agency One' }], isLoading: false, items: [] };
+      }
+      if (args[1] === '/v1/branches') {
+        return {
+          options: [
+            { value: 'branch-a', label: 'Branch A' },
+            { value: 'branch-b', label: 'Branch B' },
+          ],
+          isLoading: false,
+          items: [
+            {
+              id: 'branch-a',
+              name: 'Branch A',
+              addressJson: { street: '1 Help St', suburb: 'Chatswood', state: 'NSW', postcode: '2067' },
+            },
+            { id: 'branch-b', name: 'Branch B', addressJson: null },
+          ],
+        };
+      }
+      return { options: [], isLoading: false, items: [] };
+    });
+
+    renderDrawer();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch A'));
+
+    // Pick the agency-office preset (snapshots Branch A's address).
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    fireEvent.click(screen.getByText('At the agency office'));
+    expect(await screen.findByTestId('meeting-location-preview')).toHaveTextContent('1 Help St');
+
+    // Switch to Branch B (no office address) → the preset degrades to Custom.
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch B'));
+
+    const input = screen.getByLabelText('Meeting Location');
+    fireEvent.change(input, { target: { value: 'front gate' } });
+
+    // Branch A again makes the agency preset available — the typed text must survive.
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch A'));
+
+    expect(screen.getByLabelText('Meeting Location')).toHaveValue('front gate');
+    expect(screen.getByLabelText('Meeting location source')).toHaveTextContent('Custom address');
   });
 });

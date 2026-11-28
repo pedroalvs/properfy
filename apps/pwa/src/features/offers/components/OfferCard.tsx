@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Clock, ClockAlert, Home, MapPin } from 'lucide-react';
+import { ChevronDown, ChevronUp, Home, MapPin } from 'lucide-react';
 import { cn, TIMING } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { Badge, type BadgeProps } from '@/components/ui/Badge';
@@ -11,7 +11,7 @@ import {
 } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
-import { formatCurrency } from '@/lib/format-currency';
+import { formatCurrencyWhole } from '@/lib/format-currency';
 import {
   PROPERTY_TYPE_ICONS,
   distinctPropertyTypes,
@@ -52,26 +52,6 @@ function relativeDayLabel(dateStr: string, timeZone: string): 'TODAY' | 'TOMORRO
   return day === addCivilDays(today, 1) ? 'TOMORROW' : null;
 }
 
-function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {
-  const [_tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!expiresAt) return;
-    const id = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => clearInterval(id);
-  }, [expiresAt]);
-
-  if (!expiresAt) return null;
-  const ms = new Date(expiresAt).getTime() - Date.now();
-  if (ms <= 0) return { label: 'Priority expired', isUrgent: true };
-  const totalMins = Math.floor(ms / 60_000);
-  const hours = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  const isUrgent = ms < 2 * 60 * 60 * 1000;
-  const label = hours > 0 ? `${hours}h ${mins}m left` : `${mins}m left`;
-  return { label, isUrgent };
-}
-
 const stateLabels: Partial<Record<OfferAcceptState, { label: string; tone: BadgeProps['tone'] }>> = {
   ACCEPTED: { label: 'Accepted', tone: 'green' },
   CONFLICT: { label: 'Already taken', tone: 'amber' },
@@ -92,9 +72,6 @@ export const OfferCard = memo(function OfferCard({
   const dayLabel = relativeDayLabel(offer.scheduledDate, timeZone);
   const resolved = stateLabels[state];
   const [faded, setFaded] = useState(false);
-  // `priorityExpiresAt` is optional: the backend does not send it today, so an
-  // absent field and an explicit null both mean "no countdown".
-  const countdown = usePriorityCountdown(offer.priorityExpiresAt ?? null);
 
   useEffect(() => {
     if (state === 'ACCEPTED') {
@@ -156,12 +133,12 @@ export const OfferCard = memo(function OfferCard({
             <p className="mt-0.5 text-xs text-muted-foreground">{offer.tenantName}</p>
           </div>
           <div className="shrink-0 text-right">
-            {offer.payoutEstimate != null ? (
+            {offer.payoutFrom != null ? (
               <>
-                <p className="text-lg font-bold text-success leading-none" data-testid="payout-estimate">
-                  {formatCurrency(offer.payoutEstimate)}
+                <p className="text-lg font-bold text-success leading-none" data-testid="payout-from">
+                  From {formatCurrencyWhole(offer.payoutFrom)}
                 </p>
-                <p className="text-[10px] text-muted-foreground">est. payout</p>
+                <p className="text-[10px] text-muted-foreground">each</p>
               </>
             ) : (
               <span className="text-sm font-bold text-muted-foreground">—</span>
@@ -189,9 +166,6 @@ export const OfferCard = memo(function OfferCard({
               <Home size={13} data-testid="property-type-icon-fallback" aria-hidden="true" />
             )}
             {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
-            {offer.payoutFrom != null && (
-              <span data-testid="offer-from-price">{` · from ${formatCurrency(offer.payoutFrom)} each`}</span>
-            )}
           </span>
         </div>
 
@@ -207,24 +181,6 @@ export const OfferCard = memo(function OfferCard({
                 +{address.remaining} more {address.remaining === 1 ? 'address' : 'addresses'}
               </p>
             )}
-          </div>
-        )}
-
-        {/* Priority countdown */}
-        {countdown && (
-          <div
-            className={cn(
-              'mt-2 flex items-center gap-1 text-xs font-semibold',
-              countdown.isUrgent ? 'text-destructive' : 'text-warning',
-            )}
-            data-testid="priority-countdown"
-          >
-            {countdown.isUrgent ? (
-              <ClockAlert size={12} aria-hidden="true" />
-            ) : (
-              <Clock size={12} aria-hidden="true" />
-            )}
-            Priority: {countdown.label}
           </div>
         )}
 

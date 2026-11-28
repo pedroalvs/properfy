@@ -2,6 +2,7 @@ import type { GeocodeVerification } from '@properfy/shared';
 import {
   type IGeocodingService,
   MapboxPermanentGeocodingUnavailableError,
+  classifyGeocodingResult,
 } from '../../domain/geocoding.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { geocodeWithTimeout } from './geocode-with-timeout';
@@ -48,7 +49,9 @@ export class ImportGeocodeVerifier {
     this.opts = { ...DEFAULTS, ...opts };
   }
 
-  async verifyMany(addresses: Map<string, string>): Promise<Map<string, GeocodeVerification>> {
+  async verifyMany(
+    addresses: Map<string, { query: string; suburb: string; postcode: string }>,
+  ): Promise<Map<string, GeocodeVerification>> {
     const result = new Map<string, GeocodeVerification>();
     const entries = [...addresses.entries()];
     const deadline = Date.now() + this.opts.overallBudgetMs;
@@ -69,7 +72,7 @@ export class ImportGeocodeVerifier {
 
     const runWorker = async (): Promise<void> => {
       while (next < queue.length) {
-        const [key, address] = queue[next]!;
+        const [key, { query: address, suburb, postcode }] = queue[next]!;
         next += 1;
         if (permanentUnavailable) {
           result.set(key, UNVERIFIED);
@@ -87,11 +90,16 @@ export class ImportGeocodeVerifier {
           const coords = await geocodeWithTimeout(this.geocoding, address, {
             timeoutMs: Math.min(this.opts.perAddressTimeoutMs, remainingMs),
           });
+          // Rule A (PR-18): a coarse (non-address) or low-relevance result is
+          // not a usable coordinate — treat it as not_found so the commit worker
+          // persists FAILED (exactly what the async geocode worker would do),
+          // never committing a coarse pin as a SUCCESS coordinate.
+          const usable = coords !== null && classifyGeocodingResult(coords, suburb, postcode).accepted;
           result.set(
             key,
-            coords === null
-              ? { status: 'not_found', lat: null, lng: null }
-              : { status: 'found', lat: coords.lat, lng: coords.lng, mode: 'permanent' },
+            usable
+              ? { status: 'found', lat: coords!.lat, lng: coords!.lng, mode: 'permanent' }
+              : { status: 'not_found', lat: null, lng: null },
           );
         } catch (err) {
           result.set(key, UNVERIFIED);

@@ -56,6 +56,24 @@ describe('BulkResendReminderUseCase — per-day idempotency key', () => {
     expect(calls[1]).toBe(calls[0]);
   });
 
+  // O-11: bulk resend is the third single-link trigger. It routes each selected
+  // appointment through GeneratePortalTokenUseCase (the adopt path), so a
+  // CONFIRMED-without-cycle member stays CONFIRMED exactly as Send Portal Link does
+  // — proven end-to-end in confirmation-cycle.integration (real use case adopts).
+  it('routes each selected appointment through GeneratePortalTokenUseCase (adopt path, O-11)', async () => {
+    const useCase = new BulkResendReminderUseCase(
+      mocks.generatePortalToken,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({ appointmentIds: [APPT_ID_1], actor });
+
+    expect(mocks.generatePortalToken.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: APPT_ID_1, actor }),
+    );
+  });
+
   it('rolls the day bucket at Sydney midnight, before UTC midnight', async () => {
     // 15:00Z on the 15th = 01:00 AEST on the 16th — Sydney has already rolled over.
     const useCase = new BulkResendReminderUseCase(

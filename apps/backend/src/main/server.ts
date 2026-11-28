@@ -123,7 +123,6 @@ async function start() {
       container.auditRetentionWorker,
       container.rejectUnconfirmedWorker,
       container.cancelEmptyGroupsWorker,
-      container.fyWebhookDispatcher,
       container.inspectorNotice.deliverInspectorNoticeUseCase,
       container.inspectorNotice.sweepUndeliveredInspectorNoticesUseCase,
       container.inspectorNotice.autoArchiveInspectorNoticesUseCase,

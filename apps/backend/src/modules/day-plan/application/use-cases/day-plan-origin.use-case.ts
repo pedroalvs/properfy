@@ -8,7 +8,7 @@ import {
   isSameGeocodingAddress,
   type GeocodableAddress,
 } from '../../../../shared/domain/geocoding-address';
-import type { IGeocodingService } from '../../../property/domain/geocoding.service';
+import { classifyGeocodingResult, type IGeocodingService } from '../../../property/domain/geocoding.service';
 import { geocodeWithTimeout } from '../../../property/application/services/geocode-with-timeout';
 import { classifyStops, type ClassifiableStop } from '../../domain/classify-stops';
 import { isPublicationOpenForInspector } from '../../domain/publication-window';
@@ -120,14 +120,18 @@ export class SetDayPlanOriginUseCase extends DayPlanOriginBase {
       return await this.build(ctx, ctx.plan);
     }
 
-    let coords: { lat: number; lng: number } | null;
+    let coords: Awaited<ReturnType<typeof geocodeWithTimeout>>;
     try {
       coords = await geocodeWithTimeout(this.geocoder, formatGeocodingQuery(input.address as unknown as GeocodableAddress), { mode: 'permanent' });
     } catch (err) {
       this.logger.info({ errorName: err instanceof Error ? err.name : 'unknown' }, 'day_plan.origin_geocode_failed');
       throw new DayPlanOriginGeocoderUnavailableError();
     }
-    if (!coords) throw dayPlanOriginNotFound();
+    // Rule A (V-4): the day origin must resolve to a confident, address-level
+    // result — a postcode/suburb/city match is rejected, not accepted as origin.
+    if (!coords) throw dayPlanOriginNotFound('NOT_FOUND');
+    const decision = classifyGeocodingResult(coords, input.address.suburb, input.address.postcode);
+    if (!decision.accepted) throw dayPlanOriginNotFound(decision.reason);
 
     const record = await this.compute.execute({
       inspectorId: input.inspectorId,

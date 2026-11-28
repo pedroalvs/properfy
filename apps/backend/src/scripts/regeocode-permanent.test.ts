@@ -31,7 +31,7 @@ function makeRepo(overrides: Partial<ILegacyRegeocodeRepository> = {}): ILegacyR
   } as ILegacyRegeocodeRepository;
 }
 
-type GeocodeResult = { lat: number; lng: number } | null;
+type GeocodeResult = { lat: number; lng: number; placeType?: string; relevance?: number } | null;
 
 function makeDeps(
   repo: ILegacyRegeocodeRepository,
@@ -213,6 +213,119 @@ describe('regeocodePermanent — property phase', () => {
     expect(report.properties.noResult).toEqual([{ id: 'a', propertyCode: 'P-a', tenantId: 't1' }]);
   });
 
+  it('case R18b-P1: rule A — a coarse (place) result → rejectedCoarse bucket, legacy kept, no backfill', async () => {
+    // Real Mapbox probe: 'Tilpa NSW 2840' → place_type=place, relevance=0.667.
+    const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
+    const { deps, audit } = makeDeps(repo, async () => ({ lat: -30.9, lng: 144.4, placeType: 'place', relevance: 0.667 }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.markLegacyNoResult).toHaveBeenCalledWith('a', 't1', { lat: -33.8, lng: 151.2, updatedAt: T });
+    expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
+    // Separated by reason — NOT lumped into noResult.
+    expect(report.properties.rejectedCoarse).toEqual([
+      { id: 'a', propertyCode: 'P-a', tenantId: 't1', placeType: 'place', relevance: 0.667, returnedSuburb: null },
+    ]);
+    expect(report.properties.rejectedLowRelevance).toEqual([]);
+    expect(report.properties.noResult).toEqual([]);
+    const call = audit.mock.calls.find((c) => c[0].action === 'property.geocode_permanent_no_result');
+    expect(call![0].metadata).toMatchObject({ code: 'COARSE_RESULT', keptLegacyCoordinates: true, placeType: 'place', relevance: 0.667 });
+  });
+
+  it('case R18b-P2: rule A — a low-relevance address (<0.8) → rejectedLowRelevance bucket, legacy kept, no backfill', async () => {
+    // Real Mapbox probe: '50 Louth Road, Tilpa NSW 2840' → address, relevance=0.667.
+    const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
+    const { deps } = makeDeps(repo, async () => ({ lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.markLegacyNoResult).toHaveBeenCalledWith('a', 't1', { lat: -33.8, lng: 151.2, updatedAt: T });
+    expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
+    expect(report.properties.rejectedLowRelevance).toEqual([
+      { id: 'a', propertyCode: 'P-a', tenantId: 't1', placeType: 'address', relevance: 0.667, returnedSuburb: null },
+    ]);
+    expect(report.properties.rejectedCoarse).toEqual([]);
+    expect(report.properties.noResult).toEqual([]);
+  });
+
+  it('case R18b-P2b: a genuine null → noResult bucket only (not a rule rejection)', async () => {
+    const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
+    const { deps } = makeDeps(repo, async () => null);
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(report.properties.noResult).toEqual([{ id: 'a', propertyCode: 'P-a', tenantId: 't1' }]);
+    expect(report.properties.rejectedCoarse).toEqual([]);
+    expect(report.properties.rejectedLowRelevance).toEqual([]);
+  });
+
+  it('case R18b-P3: rule A — a confident address (>=0.8) still backfills SUCCESS, no rejection buckets', async () => {
+    // Real Mapbox probe: '1 Martin Place, Sydney NSW 2000' → address, relevance=0.894.
+    const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
+    const { deps } = makeDeps(repo, async () => ({ lat: -33.8001, lng: 151.2001, placeType: 'address', relevance: 0.894, suburb: 'Parramatta' }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.applyPermanentBackfill).toHaveBeenCalledTimes(1);
+    expect(report.properties.updated).toBe(1);
+    expect(report.properties.rejectedCoarse).toEqual([]);
+    expect(report.properties.rejectedLowRelevance).toEqual([]);
+  });
+
+  it('PART 3: counts Line-2 omitted and suburb mismatch, with the returned suburb recorded', async () => {
+    // L2 "1 Main St, Parramatta" repeats the street "1 Main St" → dropped from the query.
+    // Returned suburb "Westmead" != informed "Parramatta" (relevance fine) → suburb mismatch.
+    const repo = makeRepo({
+      findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a', { addressLine2: '1 Main St, Parramatta' })]),
+    });
+    const { deps } = makeDeps(repo, async () => ({ lat: -33.8, lng: 151.2, placeType: 'address', relevance: 0.95, suburb: 'Westmead' }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(report.lineTwoOmitted).toBe(1);
+    expect(report.rejectedSuburbMismatch).toBe(1);
+    expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
+    expect(report.properties.rejectedLowRelevance).toHaveLength(1);
+    expect(report.properties.rejectedLowRelevance[0]!.returnedSuburb).toBe('Westmead');
+  });
+
+  it('O-14: a CBD address accepts via the place + postcode branch (locality is a sub-area)', async () => {
+    // "100 George St, Sydney 2000": Mapbox returns locality "The Rocks" but place
+    // "Sydney" + postcode "2000" — the informed suburb + postcode confirm it.
+    const repo = makeRepo({
+      findLegacyCoordinateCandidates: vi
+        .fn()
+        .mockResolvedValue([prop('a', { suburb: 'Sydney', postcode: '2000' })]),
+    });
+    const { deps } = makeDeps(repo, async () => ({
+      lat: -33.8601,
+      lng: 151.2089,
+      placeType: 'address',
+      relevance: 0.95,
+      suburb: 'The Rocks',
+      place: 'Sydney',
+      postcode: '2000',
+    }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.applyPermanentBackfill).toHaveBeenCalledTimes(1);
+    expect(report.properties.updated).toBe(1);
+    expect(report.properties.rejectedLowRelevance).toEqual([]);
+  });
+
+  it('O-14: a wrong CBD match rejects and records the returned place as the returned suburb', async () => {
+    // "30 Bridge St, Sydney 2000" → Rydalmere 2116 @0.99: place != informed → reject.
+    const repo = makeRepo({
+      findLegacyCoordinateCandidates: vi
+        .fn()
+        .mockResolvedValue([prop('a', { suburb: 'Sydney', postcode: '2000' })]),
+    });
+    const { deps } = makeDeps(repo, async () => ({
+      lat: -33.8,
+      lng: 151.03,
+      placeType: 'address',
+      relevance: 0.99,
+      suburb: undefined,
+      place: 'Rydalmere',
+      postcode: '2116',
+    }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
+    expect(report.rejectedSuburbMismatch).toBe(1);
+    expect(report.properties.rejectedLowRelevance).toHaveLength(1);
+    // returnedSuburb falls back to the place when no locality is present.
+    expect(report.properties.rejectedLowRelevance[0]!.returnedSuburb).toBe('Rydalmere');
+  });
+
   it('case 8: a generic error is recorded and processing continues', async () => {
     const repo = makeRepo({
       findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a'), prop('b')]),
@@ -348,6 +461,30 @@ describe('regeocodePermanent — branch phase', () => {
     const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['branches'] }));
     expect(repo.backfillBranchCoordinates).not.toHaveBeenCalled();
     expect(report.branches.noResult).toEqual([{ id: 'b1', name: 'Branch One', tenantId: 't1' }]);
+  });
+
+  it('case R18b-B1: rule A — a coarse branch result → rejectedCoarse bucket, no write, noResult empty', async () => {
+    // Real Mapbox probe: postcode, relevance=0.522.
+    const repo = makeRepo({ findLegacyBranchCandidates: vi.fn().mockResolvedValue([branch()]) });
+    const { deps } = makeDeps(repo, async () => ({ lat: -33.81, lng: 151.21, placeType: 'postcode', relevance: 0.522 }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['branches'] }));
+    expect(repo.backfillBranchCoordinates).not.toHaveBeenCalled();
+    expect(report.branches.rejectedCoarse).toEqual([
+      { id: 'b1', name: 'Branch One', tenantId: 't1', placeType: 'postcode', relevance: 0.522, returnedSuburb: null },
+    ]);
+    expect(report.branches.noResult).toEqual([]);
+  });
+
+  it('case R18b-B2: rule A — a low-relevance address branch result → rejectedLowRelevance bucket', async () => {
+    const repo = makeRepo({ findLegacyBranchCandidates: vi.fn().mockResolvedValue([branch()]) });
+    const { deps } = makeDeps(repo, async () => ({ lat: -33.81, lng: 151.21, placeType: 'address', relevance: 0.6 }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['branches'] }));
+    expect(repo.backfillBranchCoordinates).not.toHaveBeenCalled();
+    expect(report.branches.rejectedLowRelevance).toEqual([
+      { id: 'b1', name: 'Branch One', tenantId: 't1', placeType: 'address', relevance: 0.6, returnedSuburb: null },
+    ]);
+    expect(report.branches.rejectedCoarse).toEqual([]);
+    expect(report.branches.noResult).toEqual([]);
   });
 
   it('case 37: branch CAS false → skippedConcurrent, no audit', async () => {
@@ -540,6 +677,24 @@ describe('false manual detection', () => {
     const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['false-manual'] }));
     expect(report.falseManual.ambiguous[0]).toMatchObject({ reason: 'no_result' });
     expect(repo.markLegacyNoResult).not.toHaveBeenCalled();
+    expect(repo.restoreFalseManual).not.toHaveBeenCalled();
+  });
+
+  it('case R18b-FM1: rule A — a coarse result → ambiguous reason=coarse_result (no restore, MANUAL kept)', async () => {
+    // Real Mapbox probe: 'Tilpa NSW 2840' → place, relevance=0.667. A false-MANUAL
+    // row must NOT be restored to SUCCESS from a coarse fresh geocode.
+    const repo = makeRepo({ findManualWithTransitionAudit: vi.fn().mockResolvedValue([fm()]) });
+    const { deps } = makeDeps(repo, async () => ({ lat: -30.9, lng: 144.4, placeType: 'place', relevance: 0.667 }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['false-manual'] }));
+    expect(report.falseManual.ambiguous[0]).toMatchObject({ reason: 'coarse_result' });
+    expect(repo.restoreFalseManual).not.toHaveBeenCalled();
+  });
+
+  it('case R18b-FM2: rule A — a low-relevance address → ambiguous reason=low_relevance (no restore)', async () => {
+    const repo = makeRepo({ findManualWithTransitionAudit: vi.fn().mockResolvedValue([fm()]) });
+    const { deps } = makeDeps(repo, async () => ({ lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.4 }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['false-manual'] }));
+    expect(report.falseManual.ambiguous[0]).toMatchObject({ reason: 'low_relevance' });
     expect(repo.restoreFalseManual).not.toHaveBeenCalled();
   });
 

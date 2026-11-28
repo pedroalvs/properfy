@@ -87,7 +87,7 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
   const queryClient = useQueryClient();
   const timeZone = useEffectiveTimezone();
   const isOnline = useIsOnline();
-  const { showSuccess, showError, showInfo } = useSnackbar();
+  const { showSuccess, showError, showInfo, showWarning } = useSnackbar();
   const actions = useExecutionActions(target.id);
   const [busy, setBusy] = useState<Busy>('idle');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -124,7 +124,9 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
       if (!isOnline) {
         showInfo("You're offline. Check-in saved and will sync automatically.");
       } else if (response.outOfRadius) {
-        showInfo(
+        // Persistent amber warning (stays until dismissed) so the inspector does not
+        // miss that the check-in was accepted out of radius (O-16, option 1).
+        showWarning(
           `You're ${Math.round(response.geolocationDistanceMeters ?? 0)} m from the property. Operations will see this check-in.`,
         );
       } else {
@@ -240,7 +242,10 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
           <div
             role="menu"
             aria-label={`Actions for ${code}`}
-            className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-card border border-border bg-card shadow-lg"
+            // Opens upward (bottom-full) so the menu stays inside the card body
+            // and is not clipped by the card's overflow-hidden — the kebab sits
+            // in the bottom action row, so a downward menu bled past the edge.
+            className="absolute bottom-full right-0 z-50 mb-1 w-56 overflow-hidden rounded-card border border-border bg-card shadow-lg"
           >
             {showRunningLate && (
               <button

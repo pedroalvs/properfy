@@ -14,14 +14,23 @@ export const apiKeyRoleSchema = z.enum(['AM', 'OP']);
 export type ApiKeyRole = z.infer<typeof apiKeyRoleSchema>;
 
 /**
- * Scopes a key may carry. Scoped routes (e.g. the Fy agent API) require the
- * matching scope and are machine-only — JWT principals never carry scopes.
+ * Scopes a key may carry. Scoped routes require the matching scope. The Fy
+ * agent routes are machine-only (JWT principals never carry scopes); the
+ * Mail Bot scope guards read-only access to existing human routes, enforced
+ * only for machine principals (see `requireScopeIfMachine` on the backend).
  */
-export const apiKeyScopeSchema = z.enum(['bot:fy']);
+export const apiKeyScopeSchema = z.enum(['bot:fy', 'bot:mail']);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
 /** Scope required by the Fy agent routes (`/v1/integrations/fy/*`). */
 export const FY_AGENT_SCOPE = apiKeyScopeSchema.enum['bot:fy'];
+
+/**
+ * Scope carried by the "Mail Bot - AutoLabs" integration key — read-only
+ * access to `GET /v1/appointments`, `GET /v1/contacts` and
+ * `GET /v1/contacts/:id` for a machine principal.
+ */
+export const MAIL_BOT_SCOPE = apiKeyScopeSchema.enum['bot:mail'];
 
 export const apiKeyCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),

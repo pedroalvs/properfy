@@ -27,11 +27,40 @@ export function windowEndInstant(row: LiveDayStopRow): Date {
   return zonedWallTimeToUtc(row.scheduledDate, row.timeSlotEnd, row.tenantTimezone);
 }
 
-/** Planned baseline (§5): published ?? service_start ?? window start. Never the projected time. */
+/**
+ * Baseline for the not-started alert and the accumulated / per-stop delay (D-12).
+ *
+ * It prefers the plan's routed per-stop ETA (`service_start_at`) — but **only while
+ * that ETA still falls inside the stop's CURRENT booking window** (`scheduled_date`
+ * + `time_slot_start`/`time_slot_end` in the agency timezone, read from the LIVE
+ * appointment columns). Otherwise it falls back to the current window start.
+ *
+ * Why the guard: a reschedule moves the live window but does NOT rewrite the frozen
+ * stop columns (`service_start_at`, `published_service_start_at`, the stored
+ * `day_plan_stops.window_start_at`) — marking the plan STALE only bumps its status.
+ * So after a reschedule the frozen ETA lands outside the new window and the guard
+ * rejects it, keeping the reschedule-safe behaviour (#1385). For a window WIDER than
+ * the service with no reschedule, the ETA is still inside the window and is used, so
+ * a cohort of stops sharing one wide window is each measured from its own routed
+ * arrival instead of all from the window start.
+ *
+ * It deliberately never returns `published_service_start_at`: that frozen value stays
+ * the private source of the Route ETA-accuracy metric (`get-route-eta-accuracy.use-case.ts`,
+ * L-F04-15), which lives in the day-plan module and never reads this function.
+ *
+ * The window bounds are built from the live appointment columns via `zonedWallTimeToUtc`,
+ * NOT from `windowStartInstant`/`windowEndInstant`: those helpers prefer the frozen
+ * stored `day_plan_stops.window_*` columns, which a reschedule does not rewrite, and
+ * would reintroduce the staleness this guard is meant to avoid.
+ */
 export function baselineInstant(row: LiveDayStopRow): Date {
-  if (row.publishedServiceStartAt) return new Date(row.publishedServiceStartAt);
-  if (row.serviceStartAt) return new Date(row.serviceStartAt);
-  return windowStartInstant(row);
+  const winStart = zonedWallTimeToUtc(row.scheduledDate, row.timeSlotStart, row.tenantTimezone);
+  if (row.serviceStartAt) {
+    const svc = new Date(row.serviceStartAt);
+    const winEnd = zonedWallTimeToUtc(row.scheduledDate, row.timeSlotEnd, row.tenantTimezone);
+    if (svc.getTime() >= winStart.getTime() && svc.getTime() <= winEnd.getTime()) return svc;
+  }
+  return winStart;
 }
 
 function toClassifiable(row: LiveDayStopRow): ClassifiableStop {

@@ -13,8 +13,12 @@ import {
   paginatedResponseSchema,
   type ContactListItem,
   type ContactResponse,
+  MAIL_BOT_SCOPE,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../../shared/interfaces/auth-middleware';
+import { createApiKeyAuthMiddleware } from '../../../../shared/interfaces/api-key-auth-middleware';
+import { requireScopeIfMachine } from '../../../../shared/interfaces/require-scope-if-machine';
+import type { IApiKeyRepository } from '../../../integration/domain/api-key';
 import { success, paginated } from '../../../../shared/interfaces/response';
 import type { CreateContactUseCase } from '../../application/use-cases/create-contact.use-case';
 import type { UpdateContactUseCase } from '../../application/use-cases/update-contact.use-case';
@@ -30,6 +34,12 @@ export interface ContactRouteContainer {
   listContactsUseCase: ListContactsUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  /**
+   * Enables the read-only machine (X-API-Key) principal on the contact GET
+   * routes for the Mail Bot integration. Optional so JWT-only route tests need
+   * not wire it; when absent those routes stay JWT-only.
+   */
+  apiKeyRepo?: Pick<IApiKeyRepository, 'findByHash' | 'touchLastUsed'>;
 }
 
 const contactIdParam = z.object({ contactId: z.string().uuid() });
@@ -92,6 +102,13 @@ export async function registerContactRoutes(
       return tenant?.isActive() ?? false;
     },
   );
+
+  // Read-only contact routes also accept a scoped machine (X-API-Key) principal
+  // (the Mail Bot integration); humans keep their JWT + RBAC. The scope gate is
+  // a no-op for human principals (see requireScopeIfMachine).
+  const machineReadAuth = container.apiKeyRepo
+    ? [createApiKeyAuthMiddleware(container.apiKeyRepo, authenticate), requireScopeIfMachine(MAIL_BOT_SCOPE)]
+    : authenticate;
 
   // POST /v1/contacts — create
   app.post(
@@ -243,7 +260,7 @@ export async function registerContactRoutes(
   app.get(
     '/v1/contacts',
     {
-      preHandler: authenticate,
+      preHandler: machineReadAuth,
       schema: {
         querystring: listQuerySchema,
         response: { 200: paginatedResponseSchema(contactListItemSchema) },
@@ -293,7 +310,7 @@ export async function registerContactRoutes(
   app.get(
     '/v1/contacts/:contactId',
     {
-      preHandler: authenticate,
+      preHandler: machineReadAuth,
       schema: {
         params: contactIdParam,
         querystring: detailQuerySchema,

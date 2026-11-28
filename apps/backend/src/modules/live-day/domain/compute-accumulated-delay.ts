@@ -3,10 +3,10 @@ import { baselineInstant } from './stop-view';
 
 /**
  * Accumulated delay (§5): `floor((startedAt - baseline) / 60s)` for the
- * non-abandoned started stop with the greatest `startedAt`, where
- * `baseline = published ?? service_start ?? window start`. Null when no stop is
- * started; may be negative (the UI shows "On time" when <= 0). Whole minutes,
- * truncated toward negative infinity.
+ * non-abandoned started stop with the greatest `startedAt`, where `baseline` is the
+ * stop's CURRENT booking window start (`baselineInstant`, D-12 — reschedule-aware,
+ * not the frozen published time). Null when no stop is started; may be negative (the
+ * UI shows "On time" when <= 0). Whole minutes, truncated toward negative infinity.
  */
 export function computeAccumulatedDelay(rows: LiveDayStopRow[]): number | null {
   const started = rows.filter((r) => r.startedAt !== null && r.abandonedAt === null);

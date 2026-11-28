@@ -180,6 +180,88 @@ export const findAddableGroupsResponseSchema = z.object({
 });
 export type FindAddableGroupsResponse = z.infer<typeof findAddableGroupsResponseSchema>;
 
+// ─── Move appointments between groups ────────────────────────────────────────
+//
+// A "move" takes appointments that are ALREADY in a live group and relinks them to
+// a different active group. Unlike add-to-group, it unlinks the source first (one
+// atomic transaction per appointment) and — when the destination is scheduled for
+// the current Sydney day — treats the rental tenant as already confirmed. The cap
+// of 30 matches the add flow.
+
+export const findMoveTargetsRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type FindMoveTargetsRequest = z.infer<typeof findMoveTargetsRequestSchema>;
+
+/**
+ * Destination-group summary for the move picker. Extends the addable summary with
+ * `isCurrentDay` — server-authoritative so the UI can warn that moving into today's
+ * group confirms the tenant on their behalf without re-deriving "today" in the
+ * browser timezone.
+ */
+export const moveTargetGroupSummarySchema = addableGroupSummarySchema.extend({
+  isCurrentDay: z.boolean(),
+});
+export type MoveTargetGroupSummary = z.infer<typeof moveTargetGroupSummarySchema>;
+
+export const findMoveTargetsResponseSchema = z.object({
+  groups: z.array(moveTargetGroupSummarySchema),
+  /** Set when the selected appointments have mixed service types or invalid states. Groups will be empty. */
+  reason: z
+    .enum(['MIXED_APPOINTMENT_PROPERTIES', 'INVALID_APPOINTMENT_STATUS', 'NOT_GROUPED'])
+    .optional(),
+});
+export type FindMoveTargetsResponse = z.infer<typeof findMoveTargetsResponseSchema>;
+
+export const moveAppointmentsToGroupRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type MoveAppointmentsToGroupRequest = z.infer<typeof moveAppointmentsToGroupRequestSchema>;
+
+/**
+ * Per-item outcome of a move. OK means the appointment is now in the target group
+ * (SCHEDULED under its inspector when the target is ACCEPTED, otherwise
+ * AWAITING_INSPECTOR). The rest are typed rejections surfaced without aborting the
+ * batch:
+ * - NOT_GROUPED: the appointment is not in any group (use add-to-group instead).
+ * - SOURCE_GROUP_NOT_ACTIVE: its current group is terminal/absent.
+ * - ALREADY_IN_TARGET: it is already a member of the destination group.
+ * - INVALID_STATUS / INVALID_SERVICE_TYPE / GROUP_IN_TERMINAL_STATE /
+ *   GROUP_CAPACITY_EXCEEDED / INSPECTOR_INELIGIBLE: the destination cannot take it
+ *   (mirrors the add-to-group reasons).
+ * - TARGET_DATE_INELIGIBLE: the destination is past, or is today after the Sydney
+ *   cutoff (a stale picker).
+ * - NOT_FOUND / ERROR: the appointment is missing, or a retryable conflict.
+ */
+export const moveToGroupResultStatusSchema = z.enum([
+  'OK',
+  'NOT_GROUPED',
+  'SOURCE_GROUP_NOT_ACTIVE',
+  'ALREADY_IN_TARGET',
+  'INVALID_STATUS',
+  'INVALID_SERVICE_TYPE',
+  'GROUP_IN_TERMINAL_STATE',
+  'GROUP_CAPACITY_EXCEEDED',
+  'INSPECTOR_INELIGIBLE',
+  'TARGET_DATE_INELIGIBLE',
+  'NOT_FOUND',
+  'ERROR',
+]);
+export type MoveToGroupResultStatus = z.infer<typeof moveToGroupResultStatusSchema>;
+
+export const moveToGroupResultItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  status: moveToGroupResultStatusSchema,
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type MoveToGroupResultItem = z.infer<typeof moveToGroupResultItemSchema>;
+
+export const moveAppointmentsToGroupResponseSchema = z.object({
+  results: z.array(moveToGroupResultItemSchema),
+  movedCount: z.number().int(),
+});
+export type MoveAppointmentsToGroupResponse = z.infer<typeof moveAppointmentsToGroupResponseSchema>;
+
 // ─── Group "Send portal link" (preview + execute) ───────────────────────────
 //
 // The operator sends the tenant confirmation portal link to every appointment

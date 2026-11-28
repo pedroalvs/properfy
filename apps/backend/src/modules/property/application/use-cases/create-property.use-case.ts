@@ -9,11 +9,12 @@ import type { IPropertyRepository } from '../../domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import type { IGeocodingService } from '../../domain/geocoding.service';
+import type { IGeocodingService, GeocodingResult } from '../../domain/geocoding.service';
+import { classifyGeocodingResult } from '../../domain/geocoding.service';
 import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { PropertyEntity } from '../../domain/property.entity';
 import { PropertyCodeFormatter } from '../../domain/property-code.formatter';
-import { PropertyCodeConflictError, PropertyAddressConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
+import { PropertyCodeConflictError, PropertyAddressConflictError, TenantInactiveError, BranchInactiveError, PropertyAddressNotVerifiedError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { sendJob } from '../../../../shared/infrastructure/queue';
 
@@ -41,6 +42,9 @@ export interface CreatePropertyInput {
   furnished?: boolean;
   linenProvided?: boolean;
   rentAmount?: number;
+  /** Manual pin (V-1 / decision V2): both present → store MANUAL, skip address validation. */
+  latitude?: number | null;
+  longitude?: number | null;
   notes?: string;
   rulesJson?: Record<string, unknown>;
   actor: AuthContext;
@@ -149,6 +153,15 @@ export class CreatePropertyUseCase {
     const now = new Date();
     const id = crypto.randomUUID();
 
+    // Manual pin (V-1 / decision V2): a complete coordinate pair is the rural
+    // escape — it wins, the address text is NOT geocoded/validated, and the
+    // property is stored MANUAL. An incomplete pair is ignored (treated as none).
+    const manualPin =
+      input.latitude !== undefined &&
+      input.latitude !== null &&
+      input.longitude !== undefined &&
+      input.longitude !== null;
+
     const buildProperty = (propertyNumber: number): PropertyEntity =>
       new PropertyEntity({
         id,
@@ -167,9 +180,9 @@ export class CreatePropertyUseCase {
         postcode: input.postcode,
         state: input.state,
         country: input.country,
-        lat: null,
-        lng: null,
-        geocodingStatus: 'PENDING',
+        lat: manualPin ? input.latitude! : null,
+        lng: manualPin ? input.longitude! : null,
+        geocodingStatus: manualPin ? 'MANUAL' : 'PENDING',
         privateAreaM2: input.privateAreaM2 ?? null,
         totalAreaM2: input.totalAreaM2 ?? null,
         furnished: input.furnished ?? null,
@@ -186,8 +199,8 @@ export class CreatePropertyUseCase {
     // attempts) so the property has coordinates the instant creation returns.
     // On timeout or transient error we keep PENDING and let the async worker
     // finish it. `undefined` = keep PENDING; null/coords = terminal outcome.
-    let geocodeOutcome: { lat: number; lng: number } | null | undefined;
-    if (this.geocodingService) {
+    let geocodeOutcome: GeocodingResult | null | undefined;
+    if (this.geocodingService && !manualPin) {
       try {
         // Permanent mode (default): only permanently geocoded coordinates may be
         // stored. On timeout, account error or any transient error we keep PENDING
@@ -197,7 +210,20 @@ export class CreatePropertyUseCase {
         });
       } catch (err) {
         this.logger?.warn({ propertyId: id, err }, 'property.sync_geocode_failed_falling_back');
-        // property stays PENDING — async fallback below
+        // property stays PENDING — async fallback below (V4 "provider down")
+      }
+
+      // V-1: a definitive geocode that fails rule A is rejected on save — 422,
+      // nothing written. Only a timeout/transient error (undefined) falls through
+      // to PENDING. `null` = address not found; a result = classify it.
+      if (geocodeOutcome === null) {
+        throw new PropertyAddressNotVerifiedError('NOT_FOUND');
+      }
+      if (geocodeOutcome !== undefined) {
+        const decision = classifyGeocodingResult(geocodeOutcome, input.suburb, input.postcode);
+        if (!decision.accepted) {
+          throw new PropertyAddressNotVerifiedError(decision.reason);
+        }
       }
     }
 

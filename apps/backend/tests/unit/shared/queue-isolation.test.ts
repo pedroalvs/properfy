@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { resolvePgBossSchema, databasesMatch } from '../../../src/shared/infrastructure/queue';
+import {
+  resolvePgBossSchema,
+  databasesMatch,
+  resolveJobPollIntervalSeconds,
+} from '../../../src/shared/infrastructure/queue';
 
 describe('resolvePgBossSchema', () => {
   it('defaults to "pgboss" when PGBOSS_SCHEMA is unset', () => {
@@ -24,6 +28,42 @@ describe('resolvePgBossSchema', () => {
   it('rejects schema names with unsafe characters (SQL-injection guard)', () => {
     expect(() => resolvePgBossSchema({ PGBOSS_SCHEMA: 'pgboss; drop table' })).toThrow();
     expect(() => resolvePgBossSchema({ PGBOSS_SCHEMA: 'pg-boss' })).toThrow();
+  });
+});
+
+describe('resolveJobPollIntervalSeconds', () => {
+  it('returns undefined when unset so pg-boss keeps its 2s default', () => {
+    expect(resolveJobPollIntervalSeconds({})).toBeUndefined();
+  });
+
+  it('returns undefined for a blank value', () => {
+    expect(
+      resolveJobPollIntervalSeconds({ PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: '   ' }),
+    ).toBeUndefined();
+  });
+
+  it('parses a valid positive integer (seconds)', () => {
+    expect(
+      resolveJobPollIntervalSeconds({ PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: '15' }),
+    ).toBe(15);
+  });
+
+  it('rejects values below pg-boss minimum of 1, falling back to the default', () => {
+    expect(
+      resolveJobPollIntervalSeconds({ PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: '0' }),
+    ).toBeUndefined();
+    expect(
+      resolveJobPollIntervalSeconds({ PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: '-5' }),
+    ).toBeUndefined();
+  });
+
+  it('rejects non-integer and non-numeric values', () => {
+    expect(
+      resolveJobPollIntervalSeconds({ PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: '1.5' }),
+    ).toBeUndefined();
+    expect(
+      resolveJobPollIntervalSeconds({ PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: 'abc' }),
+    ).toBeUndefined();
   });
 });
 

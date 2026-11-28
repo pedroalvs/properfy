@@ -17,8 +17,6 @@ const baseOffer: MarketplaceOffer = {
   groupSize: 3,
   scheduledDate: '2026-03-20',
   timeWindow: '09:00-11:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   suburbs: ['Brunswick', 'Fitzroy'],
   payoutEstimate: null,
   appointmentCount: 3,
@@ -92,16 +90,21 @@ describe('OfferCard', () => {
     expect(onViewDetail).toHaveBeenCalledOnce();
   });
 
-  it('renders "from $X each" on the count line when payoutFrom is present', () => {
+  it('renders the per-inspection "From $X" headline (whole dollars) when payoutFrom is present', () => {
     render(
       <OfferCard offer={{ ...baseOffer, payoutFrom: 15 }} state="IDLE" onAccept={onAccept} />,
     );
-    expect(screen.getByTestId('offer-from-price')).toHaveTextContent('from $15.00 each');
+    expect(screen.getByTestId('payout-from')).toHaveTextContent('From $15');
+    // The per-job price is the headline now — no longer a suffix on the count pill.
+    expect(screen.queryByTestId('offer-from-price')).not.toBeInTheDocument();
+    expect(screen.getByText('3 inspections')).toBeInTheDocument();
   });
 
-  it('omits the from-price line when payoutFrom is null or absent', () => {
+  it('shows the — fallback and no from-price when payoutFrom is null or absent', () => {
     render(<OfferCard offer={{ ...baseOffer, payoutFrom: null }} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('payout-from')).not.toBeInTheDocument();
     expect(screen.queryByTestId('offer-from-price')).not.toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('renders offer details', () => {
@@ -185,12 +188,6 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('property-type-icon-fallback')).toBeInTheDocument();
   });
 
-  it('renders no countdown when priorityExpiresAt is absent from the payload', () => {
-    const { priorityExpiresAt: _omitted, ...withoutExpiry } = baseOffer;
-    render(<OfferCard offer={withoutExpiry} state="IDLE" onAccept={onAccept} />);
-    expect(screen.queryByTestId('priority-countdown')).toBeNull();
-  });
-
   it('shows Accept button for IDLE state', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByTestId('accept-button')).toBeInTheDocument();
@@ -249,11 +246,11 @@ describe('OfferCard', () => {
     expect(screen.getByText('1 inspection')).toBeInTheDocument();
   });
 
-  it('shows payout estimate when provided', () => {
+  it('shows the per-inspection "From $X" headline when payoutFrom is provided', () => {
     render(
-      <OfferCard offer={{ ...baseOffer, payoutEstimate: 220 }} state="IDLE" onAccept={onAccept} />,
+      <OfferCard offer={{ ...baseOffer, payoutFrom: 220 }} state="IDLE" onAccept={onAccept} />,
     );
-    expect(screen.getByTestId('payout-estimate')).toBeInTheDocument();
+    expect(screen.getByTestId('payout-from')).toHaveTextContent('From $220');
   });
 
   it('has role="alert" on state label', () => {
@@ -271,18 +268,5 @@ describe('OfferCard', () => {
     });
 
     expect(card.className).toContain('opacity-40');
-  });
-
-  it('shows priority countdown when priorityExpiresAt is set', () => {
-    vi.useRealTimers();
-    const future = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
-    render(
-      <OfferCard
-        offer={{ ...baseOffer, priorityExpiresAt: future }}
-        state="IDLE"
-        onAccept={onAccept}
-      />,
-    );
-    expect(screen.getByTestId('priority-countdown')).toBeInTheDocument();
   });
 });

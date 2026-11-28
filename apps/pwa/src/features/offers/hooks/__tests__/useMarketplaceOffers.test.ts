@@ -26,8 +26,6 @@ function makeOffer(id: string) {
     appointmentCount: 1,
     scheduledDate: '2026-08-01',
     timeWindow: '09:00-11:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     suburbs: ['Brunswick'],
   };
 }

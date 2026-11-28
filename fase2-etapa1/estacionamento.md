@@ -27,6 +27,16 @@ Estes itens foram encontrados durante a análise. **Nenhum deles entra nas specs
 | 19 | (Validação 18/11) Docs de planejamento desatualizados: `INSPECTOR_NOTICE_TARGET_PATTERNS` hoje tem 4 entradas (incl. `/today` da F04 e `/profile/challenges` da F08), mas o texto antigo ainda diz "exactly 2 patterns". | `fase2-etapa1/tarefas/F02-tarefas.md:199`, `specs/046-f02-3-sw-push-inbox/contracts/consumed-routes.md:18` | Histórico, **não é defeito** — o teste `packages/shared/src/constants/inspector-notices.test.ts` já asserta as 4 entradas corretamente. Atualizar os docs à parte só se quiser uniformidade. |
 | 20 | (Validação 18/11) Opcional/rastreabilidade: o upload de **nova versão** de arquivo audita como `property_file.uploaded` (com `after.version` no payload), não como uma ação própria `property_file.version_added`. | `confirm-property-file-upload.use-case.ts:132-146` | Hoje um leitor distingue versão por `after.version > 1`. Dar ação própria é cosmético; só se houver exigência regulatória de paridade de nome de ação. Fecha o último "MEDIUM" da auditoria rasa (era falso-positivo). |
 
+| 21 | (Validação 24/11, PR-18) `day-plan-origin.use-case.ts` (~L123-130) usa o resultado de geocodificação como origem da rota **sem** o gate da regra A (place_type/relevance do PR-18); um resultado grosseiro/baixa-relevância vira origem de rota errada. | `apps/backend/src/modules/day-plan/application/use-cases/day-plan-origin.use-case.ts` | **Decisão do Pedro 24/11: fica DE FORA do follow-up de cobertura do PR-18.** É input transiente digitado pelo inspetor, que ele vê na hora (não é SUCCESS persistido em entidade). Gatear exige decidir o que o app faz quando o endereço digitado não é encontrado (recusar vs avisar-e-seguir) → mudança de tela/UX, tarefa de produto separada. |
+
+| 22 | (Reteste DEV 24/11) Observações O-3 a O-7 para o DOC-1 (decisão do Pedro: estacionar): O-3 limite de 20 MB por arquivo não aplicado no upload web (arquivo de 55 MB chegou ao storage, que barrou); O-4 plurais errados ("Complete 1 inspections", "0 of 1 services"); O-5 Live Day mostra "On time" no cabeçalho com a próxima parada já atrasada; O-6 horário previsto desatualizado no card "Next inspection" do app (9:23 vs 10:08 no Live Day); O-7 arquivos de teste não confirmados ficaram no imóvel SPS-007 (a limpeza automática deve tratar). | `fase2-etapa1/reteste-dev-2026-11-24.md` (seção Observações) | O-1 e O-2 NÃO entram aqui — vão para o validador (O-1→V-4, O-2→V-2). O-3..O-7 ficam estacionados; consolidar no DOC-1. |
+
+| 23 | (25/11, PR #1397) DEV idle-shutdown adiado: o PR de egress do Supabase propunha `min_machines_running = 0` em DEV (desliga a maquina ociosa), mas foi mantido em `1` ate depois de 30/11/2026. | `fly.dev.toml` (raiz) | **Follow-up (DOC-1): religar o idle-shutdown de DEV (min_machines_running = 0) depois de 30/11/2026.** Motivo da espera: 3 verificacoes do reteste dependem de tarefas agendadas rodando de madrugada (publicacao 19:30 Sydney, aviso da manha/varredura, premios e bonus). PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS=15 em DEV/staging fica. |
+| 24 | (25/11, Batedor 2a perna, O-10) App preso no pacote antigo do service worker — com o bundle antigo a recusa da base do inspetor não mostra mensagem (a tela nova do V-3 não aparece até o SW atualizar). | PWA (service worker / cache do bundle) | **Parqueado (Pedro 25/11).** Follow-up: estratégia de atualização/skipWaiting do SW ou invalidação de cache para forçar o bundle novo; validar que a mensagem de recusa da base aparece após deploy. |
+| 25 | (25/11, Batedor 2a perna, O-8) PATCH da agência aceita chave de configuração DESCONHECIDA (settings) sem rejeitar. | backend (update agency/tenant settings) | **Parqueado (Pedro 25/11).** Follow-up: validar o corpo do PATCH de settings contra o schema conhecido (rejeitar chave desconhecida com 400), sem quebrar chaves válidas existentes. |
+| 26 | (25/11, Batedor 2a perna, O-13) Logs do `properfy-api-dev` marcados com env `staging`. | infra/deploy (env tag nos logs do DEV) | **Parqueado (Pedro 25/11).** Follow-up: corrigir a tag de ambiente nos logs do DEV (deve ser `dev`), provavelmente var de ambiente/secret de logging herdada de staging. |
+| 27 | (25/11, Batedor 2a perna) `backfill-inspector-base-coords.ts` sem `validateEnv()` — mesmo defeito latente corrigido no regeocode (#1401); o script nunca rodou e lançaria "Environment not validated". | `apps/backend/src/scripts/backfill-inspector-base-coords.ts` | **Parqueado (Pedro 25/11).** Follow-up: adicionar `validateEnv()` antes de `createContainer()` (espelhar o #1401) + empacotar no tsup se for rodar; sem runbook hoje. |
+
 ## Encontrados no design v3 (fora do contrato)
 
 - Itens de manutenção a checar, fotos da inspeção sincronizadas, foto de entrada ou interfone.
@@ -49,3 +59,76 @@ Confrontando o `Properfy Inspector App v3.pdf` com o app entregue, 3 itens foram
 - (Validação 18/11) **B1 — "Show login details" (credenciais do app de laudo, PDF p.2).** O PWA tem o botão abrir-app (`inspectionAppLink`, `JobDetailsSection.tsx`), mas **não** revela credenciais. **DECIDIDO 18/11: PARQUEAR (não construir).** Motivo: segurança — não expor credenciais do app de laudo no cliente PWA; mantém-se só o deep-link de abrir-app. Reabrir só por pedido de mudança com um desenho de segurança (origem do dado, mascaramento, superfície de exposição).
 - (Validação 18/11) **B2 — "Mark all read" nos Announcements (PDF p.11).** Há mark-read por item + badge de não-lidos; faltava a ação em massa. **✅ CONSTRUÍDO E MERGEADO — PR #1369.** Endpoint `POST /v1/inspectors/me/notices/read-all` (INSP-only, `updateMany` escopado ao próprio `inspector_id`, 403 `INSP_ONLY` p/ CL/AM, teste de isolamento cross-inspector) + botão na inbox que invalida `['inspector-notices']` (limpa lista+badge) + api-types regenerado. TDD, CI verde.
 - (Validação 18/11) **B3 — Conclusão não encadeia a próxima parada (PDF p.5).** `DonePanel` só oferecia "Back to Schedule"; o PDF empurra next-inspection + Navigate. **✅ CONSTRUÍDO E MERGEADO — PR #1368.** PWA-only: na fase DONE lê o day-plan de hoje (`useDayPlan`) e deriva a próxima parada (`nextStopAfter`/`isLastActiveStop`), mostrando card "Up next on your route" (abrir detalhe + Navigate via F04); "All done for today" no último job; fallback "Back to Schedule" intacto quando não há plano publicado. TDD, CI verde.
+
+## Regeocode DEV — rodada 2 (25/11, pós regra final #1406)
+
+STEP 1 dry-run: 2 requisições, US$0.01. STEP 2 --apply (exit 0, US$0.01): properties scanned 1 / updated 1 (Line 2 duplicado → dedup → passou a regra final, suburbio bateu; lineTwoOmitted 1); 0 rejeições (coarse/low-relevance/suburb-mismatch); falseManual: PROP-0020 (low_relevance, deixado MANUAL p/ revisão) + PROP-0017 (sem audit property.updated, não auto-restaurável).
+
+**Os 8 LOW_RELEVANCE da rodada 1 NÃO entram no sweep** — `findLegacyCoordinateCandidates` (prisma-property.repository.ts:617) exclui `geocoding_failure_code='LEGACY_PERMANENT_NO_RESULT'` (código gravado por `markLegacyNoResult`). `--retry-failed-permanent` também não os pega (só `MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE`). Caminho sem mudança de código = botão **Retry Geocoding** (GeocodePropertyUseCase → PENDING + code null → worker re-geocodifica sob a regra atual).
+
+**Follow-up operacional (Batedor / Pedro):** reprocessar via Retry Geocoding os 7 imóveis DEV (devem passar na regra final): IMP-2A412183A9 (Brighton-le-sands), IMP-6238CD8E93 (Penshurst), IMP-748F05CA28 (Carlton), IMP-90EC930570 (Bexley), IMP-D45E7C3CEF (Hurstville), IMP-FF4AB720F8 (Hurstville), SPS-006 (Chatswood). (IMP-D3CE99EF20/Bexley já saiu do estado entre rodadas.) PROP-0017 + PROP-0020: revisão manual.
+
+## Parqueados — rodada final Batedor (25/11, decisões Pedro)
+
+- **O-14 (busca × salvamento):** a busca da tela (`AddressLookupInput` → `GET /v1/address/suggestions` → `mapbox-address-lookup.service.ts:82-86`, TEMPORARY + autocomplete=true + types=address + limit 5, texto cru) sugere endereços que o salvamento (permanent + query estruturada + limit 1) recusa (ex.: 346 Military Rd Mosman → Vaucluse 2030). A busca não aplica a regra A. **Parqueado (Pedro 25/11).** Follow-up: alinhar a busca ao modo permanent, ou avisar que a sugestão ainda será verificada no save. (A refinação da REGRA de suburbio CBD é PR próprio aprovado, não é este parqueamento.)
+- **O-17 (Live Day):** a linha do Live Day só aparece após recarregar no primeiro clique. **Parqueado (Pedro 25/11).** Follow-up web: invalidar/refetch a query do Live Day no primeiro clique em vez de exigir reload.
+- **O-18 (Notes da agência):** o campo Notes da agência é descartado ao salvar. **Parqueado (Pedro 25/11).** Follow-up: persistir/enviar o Notes no PATCH da agência (conferir schema + use case + form).
+- **O-16 (aviso de distância no cartão do app):** não aparece no cartão do PWA → **análise do Prumo** (não mexer nesta onda).
+- **'Rural property?'** (texto junto ao 'Set location manually'): Pedro vai mandar proposta própria → não mexer.
+
+## Follow-up — rename GeocodingResult.suburb → locality (25/11)
+
+Na regra O-14 (#1409) o campo `GeocodingResult.suburb` passou a guardar SOMENTE o `locality` devolvido pelo Mapbox (place e postcode viraram campos separados). Mantido o nome `suburb` por ora (evita churn de 42 fixtures), **com comentário explícito no campo** dizendo que guarda o locality. **Follow-up (Pedro/CC#3 25/11): renomear `suburb`→`locality` em `GeocodingResult` + ajustar as fixtures/consumidores** — trivial, só nomenclatura, sem mudança de comportamento.
+
+## Nota — retry token-only no SendGroupPortalLinks depende do lock do tenant (25/11)
+
+No caminho de reset do grupo (`send-group-portal-links.use-case.ts:187-188`) o `retryOnUniqueConflict` externo cobre SÓ `TOKEN_HASH_COLUMN`, não os alvos de ciclo (`CYCLE_UNIQUE_CONSTRAINT_COLUMNS`). Isso é correto HOJE **porque** o caminho é serializado por um lock pessimista `SELECT … FROM tenants … FOR UPDATE` (`prepareInTransaction` → `generate-portal-token.use-case.ts:225-226` → `prisma-tenant.repository.ts:75-90`): uma 2ª resend concorrente no mesmo tenant bloqueia, re-lê, re-classifica (deixa de ser `SEND_AFTER_RESET` → SKIP) e nunca chama `rotateOnDateChange` de novo → sem colisão de ciclo. **Caveat (não é gap):** se esse `FOR UPDATE` do tenant for removido um dia, o retry token-only no :187 deixaria de cobrir `appointment_active_cycle_unique`/`cycle_number` e um P2002 vazaria ao operador. Follow-up trivial opcional: comentário de 1 linha no :187 amarrando o retry token-only ao lock do tenant. (Confirmado por V3-inspbase com file:line; CC#3 aceitou 25/11.)
+
+
+## [O-19 Fatia 4 / decisão 42] Remover a flag includePlatformBonus na Fatia 5 (limpeza)
+
+Data: 25/11/2026. Origem: O-19 Fatia 4 (PR #1416), decisão 42 do Pedro + leitura do CC#3.
+
+Após a correção do D8 (OP passou a ser idêntico ao AM na leitura financeira: com agência escolhida vê só as linhas dela, SEM `includePlatformBonus`; sem agência vê tudo), a flag `includePlatformBonus` ficou **sem nenhum setter no código**. Ela permanece no repositório — interface `FinancialEntryFilters.includePlatformBonus` + o ramo OR em `apps/backend/src/modules/billing/infrastructure/persistence/prisma-financial-entry.repository.ts:62`. Remoção **estacionada para a Fatia 5** (limpeza do tipo A), por decisão do CC#3 (25/11) — NÃO apagar antes disso. O requisito do F08-6/DQ10 ("OP vê o bônus de inspetor no ledger") continua atendido pelo caminho SEM escopo (OP sem agência vê a linha tenantless do INSPECTOR_BONUS), provado pelo teste de banco do #1416.
+
+
+## [O-19 limpeza] Remover referência a agente pré-existente em apps/backend/CLAUDE.md:641
+
+Data: 25/11/2026. Origem: encontrada pelo B2Build durante a O-19 Fatia 4.
+
+A linha 641 (seção geocoding/O-14/X02, permanent geocoding) traz "A re-reject keeps the legacy coordinate (CC#3): the GeocodeWorker reject path updates only status + code...". É referência a agente em doc versionado (viola a norma "sem referência a agente/Claude/Anthropic em código/docs"), introduzida por um PR anterior já mergeado (PR-18/geocoding). Fora do escopo da Fatia 4; NÃO tocada lá. **Estacionada** para a Fatia 5 (limpeza do tipo A) ou um doc-fix trivial à parte: remover o "(CC#3)" mantendo o texto ("...keeps the legacy coordinate: the GeocodeWorker...").
+
+**ATUALIZAÇÃO (25/11):** NÃO estacionado — CC#3 decidiu remover já, no rebase do #1413 (que toca esse arquivo): substituir "(CC#3)" por texto neutro, sem menção a agente, citando a linha no delta. Sem PR próprio, sem esperar a Fatia 5.
+
+
+## [Decisão 45 / remoção opt-out] PR-3 — apagar tabela e enum (ETAPA DE OPERAÇÃO, só após PR-2 em produção)
+
+Data: 25/11/2026. Origem: decisão 45 do Pedro + fase2-etapa1/investigacao-remocao-opt-out.md (§4). NÃO fazer agora.
+
+Etapa **contract** da remoção da recusa de consentimento: migration que faz `DROP TABLE notification_consents;` + `DROP TYPE "ConsentChangeSource";`, remove o model/enum/relação `User.consent_changes` do schema.prisma, e tira a tabela/enum de docs/database-schema.md (§6/§D6). **Só depois do PR-2 estar EM PRODUÇÃO** (expand/contract: no rolling deploy as máquinas antigas ainda leem a tabela; apagar junto quebraria o envio). Antes do PR-3: rodar a contagem read-only (§3.4) uma última vez; se o Pedro quiser prova histórica de quem recusou, EXPORTAR antes (decisão D2). ~4 arquivos. Atenção: `prisma migrate diff` não pode dropar índice Unsupported() (ver project_prisma_drift_drops_unsupported_indexes).
+
+## [Estacionado sem PR — decisão 45] O-20: aviso "2 confirmation(s) reset" com 1 real
+
+Data: 25/11/2026. Bug de UI/contagem: a mensagem de reset de confirmação (área O-11 / ciclo de confirmação) mostra "2 confirmation(s) reset" quando só 1 foi de fato resetada. Investigar a contagem exibida vs. a real. Sem PR agora.
+
+## [Estacionado sem PR — decisão 45] O-21: botão Reactivate aparece para OP em usuário INTERNO
+
+Data: 25/11/2026. No drawer de usuário interno, o botão "Reactivate" aparece para o OP, mas usuário interno é só-AM (a guarda de backend barra, mas o botão não deveria aparecer p/ OP). Lacuna de UI (esconder/desabilitar o botão p/ OP em alvo interno). Sem PR agora.
+
+## [Estacionado sem PR — decisão 45] O-23: aba do app (PWA) presa na versão antiga até atualizar
+
+Data: 25/11/2026. A aba aberta do PWA fica na versão antiga até o usuário atualizar (service worker / chunk antigo). Investigar estratégia de atualização (skipWaiting/clientsClaim, prompt de nova versão, ou o padrão de retry de chunk — ver project_stale_chunk_retry). Sem PR agora.
+
+
+## [Estacionado — decisão 46 / O-22] Trava contra TENANT_DEBIT/REFUND com inspetor (domínio ou CHECK no banco)
+
+Data: 25/11/2026. Decisão 46 do Pedro: NÃO adicionar agora. O O-22 (débito de agência sumia do extrato por ter inspector_id preenchido) é corrigido SÓ no seed (inspector_id null nos 3 débitos fe1/fe3/fe8 + o upsert passa a atualizar inspector_id p/ nulo nas linhas existentes). A trava OPCIONAL fica ESTACIONADA: (a) no domínio, FinancialEntryEntity recusar TENANT_DEBIT/REFUND com inspectorId preenchido; e/ou (b) CHECK no banco `entry_type NOT IN ('TENANT_DEBIT','REFUND') OR inspector_id IS NULL`. O CHECK só pode entrar DEPOIS da consulta read-only (§3 do investigacao-o22) dar ZERO em staging e produção (senão a migration falha no deploy). Contagem do Pedro: produção 22 débitos de agência, todos SEM inspetor; staging tem os mesmos 3 do seed. Sem PR agora. NÃO mexer no filtro do extrato (excludeInspectorScoped fica).
+
+
+## [Estacionado sem PR — onda pos-validacao] O-24: aba Notifications traduz CONSENT_OPT_OUT e nao traduz MARKETING_NOT_SENT
+
+Data: 26/11/2026. SO CODIGO, nada visivel hoje. A aba Notifications do agendamento ainda tem rotulo/traducao para o motivo CONSENT_OPT_OUT (historico, linhas antigas) e NAO tem rotulo para o novo MARKETING_NOT_SENT (introduzido no PR-2 da remocao da recusa, #1419). Como nenhuma linha MARKETING_NOT_SENT aparece hoje (marketing bloqueado na criacao; so chegaria por linha legada), nada visivel ao usuario. Follow-up: manter o rotulo historico de CONSENT_OPT_OUT e acrescentar rotulo p/ MARKETING_NOT_SENT (regra no raw ids in UI). Sem PR agora.
+
+## [Estacionado sem PR — onda pos-validacao] O-25: toast "Email sent to tenant" quando sai e-mail E SMS
+
+Data: 26/11/2026. Quando o envio dispara e-mail E SMS ao inquilino, o toast diz so "Email sent to tenant", sem mencionar o SMS. Ajustar a copy do toast p/ refletir os dois canais (ex. "Notification sent to tenant" ou mencionar e-mail + SMS). Sem PR agora.

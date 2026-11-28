@@ -8,6 +8,7 @@ import {
   UserAlreadyActiveError,
 } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 
 export interface ReactivateUserInput {
   tenantId: string | null;
@@ -28,17 +29,22 @@ export class ReactivateUserUseCase {
   async execute(input: ReactivateUserInput): Promise<void> {
     const { tenantId, userId, reason, actor } = input;
 
-    // RBAC mirrors deactivate-user.use-case: AM crosses tenants and manages
-    // internal (tenant-less) users; CL_ADMIN and OP are scoped to their own tenant.
+    // AM crosses tenants and manages internal (tenant-less) users; OP is
+    // cross-tenant over agency users (root CLAUDE.md §6, DEC-003); only
+    // CL_ADMIN is confined to its own tenant.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'user.reactivate',
       entityType: 'User',
     });
 
-    if (
-      (actor.role === 'CL_ADMIN' || actor.role === 'OP') &&
-      actor.tenantId !== tenantId
-    ) {
+    // Confine only tenant-pinned roles to their own tenant via the canonical
+    // classification: `requireTenantScope` returns `undefined` for cross-tenant
+    // roles (AM/OP), so OP — which already creates, edits and deactivates agency
+    // users — reactivates them across tenants too, and a future pinned role is
+    // covered automatically. (assertRoles above already excludes the other-key
+    // roles that `requireTenantScope` would throw for.)
+    const pinnedTenant = requireTenantScope(actor, 'user.reactivate');
+    if (pinnedTenant !== undefined && pinnedTenant !== tenantId) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
         'You can only reactivate users from your own tenant',

@@ -14,8 +14,13 @@ vi.mock('bcryptjs', () => ({
 
 // The geocode step is unit-tested in geocode-inspector-base.test.ts. Here we mock
 // it so the create use case's ordering, audit, event and output can be asserted
-// without re-exercising the timeout/Mapbox machinery.
-vi.mock('../../../src/modules/inspector/application/services/geocode-inspector-base', () => ({
+// without re-exercising the timeout/Mapbox machinery. `inspectorBaseRejectionReason`
+// (the V-3 pure classifier) is kept REAL via importOriginal — the use case calls it
+// to decide 422-vs-save, so auto-mocking it to undefined would break every path.
+vi.mock('../../../src/modules/inspector/application/services/geocode-inspector-base', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('../../../src/modules/inspector/application/services/geocode-inspector-base')
+  >()),
   geocodeInspectorBase: vi.fn(),
 }));
 
@@ -29,10 +34,13 @@ import type { IUserManagementRepository } from '../../../src/modules/user/domain
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
-import { inspectorResponseSchema } from '@properfy/shared';
+import { inspectorResponseSchema, ADDRESS_NOT_VERIFIED_CODE } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
-import { InspectorEmailConflictError } from '../../../src/modules/inspector/domain/inspector.errors';
+import {
+  InspectorEmailConflictError,
+  InspectorBaseAddressNotVerifiedError,
+} from '../../../src/modules/inspector/domain/inspector.errors';
 import {
   PasswordTooWeakError,
   PasswordTooCommonError,
@@ -480,14 +488,33 @@ describe('CreateInspectorUseCase', () => {
       expect(result.baseLat).toBe(-33.86);
     });
 
-    it('saves the address with null coordinates and baseGeocodeFailed=true on a geocode failure', async () => {
-      vi.mocked(geocodeInspectorBase).mockResolvedValue({ failed: 'no_results' });
+    // V-3: only a provider-unavailable failure (timeout / error / no permanent mode)
+    // still saves without coordinates. A rule-A rejection now throws a 422 (covered
+    // below), so this path uses `permanent_unavailable`.
+    it('saves the address with null coordinates and baseGeocodeFailed=true when the provider is unavailable', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ failed: 'permanent_unavailable' });
       const result = await run();
       const saved = vi.mocked(inspectorRepo.save).mock.calls[0][0];
       expect(saved.baseLat).toBeNull();
       expect(saved.baseLng).toBeNull();
       expect(saved.baseGeocodedAt).toBeNull();
       expect(result.baseGeocodeFailed).toBe(true);
+    });
+
+    // V-3: a rule-A rejection blocks the create with a 422 before any write.
+    it.each([
+      ['no_results', 'NOT_FOUND'],
+      ['coarse_result', 'COARSE_RESULT'],
+      ['low_relevance', 'LOW_RELEVANCE'],
+    ] as const)('rejects the create with 422 ADDRESS_NOT_VERIFIED on %s and writes nothing', async (failed, reason) => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ failed });
+      const err = await run().catch((e) => e);
+      expect(err).toBeInstanceOf(InspectorBaseAddressNotVerifiedError);
+      expect(err.code).toBe(ADDRESS_NOT_VERIFIED_CODE);
+      expect(err.statusCode).toBe(422);
+      expect(err.details?.[0]).toMatchObject({ field: 'address', reason });
+      expect(userManagementRepo.save).not.toHaveBeenCalled();
+      expect(inspectorRepo.save).not.toHaveBeenCalled();
     });
 
     it('stores the geocoder coordinates, never a client-sent latitude/longitude', async () => {

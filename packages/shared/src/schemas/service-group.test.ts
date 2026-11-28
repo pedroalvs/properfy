@@ -15,6 +15,10 @@ import {
   getGroupPortalLinkPlanResponseSchema,
   sendGroupPortalLinksRequestSchema,
   sendGroupPortalLinksResponseSchema,
+  findMoveTargetsRequestSchema,
+  findMoveTargetsResponseSchema,
+  moveAppointmentsToGroupRequestSchema,
+  moveAppointmentsToGroupResponseSchema,
 } from './service-group';
 
 const validUuid = '550e8400-e29b-41d4-a716-446655440000';
@@ -416,5 +420,75 @@ describe('changeGroupScheduleRequestSchema', () => {
 
   it.each(['17:00-09:00', '12:00-12:00'])('rejects the unusable window %s', (timeWindow) => {
     expect(changeGroupScheduleRequestSchema.safeParse({ ...base, timeWindow }).success).toBe(false);
+  });
+});
+
+describe('findMoveTargetsRequestSchema', () => {
+  it('accepts 1..30 appointment ids', () => {
+    expect(findMoveTargetsRequestSchema.safeParse({ appointmentIds: [validUuid] }).success).toBe(true);
+    expect(findMoveTargetsRequestSchema.safeParse({ appointmentIds: generateUuids(30) }).success).toBe(true);
+  });
+
+  it('rejects empty and over-cap lists', () => {
+    expect(findMoveTargetsRequestSchema.safeParse({ appointmentIds: [] }).success).toBe(false);
+    expect(findMoveTargetsRequestSchema.safeParse({ appointmentIds: generateUuids(31) }).success).toBe(false);
+  });
+});
+
+describe('findMoveTargetsResponseSchema', () => {
+  const group = {
+    id: validUuid,
+    groupNumber: 7,
+    code: '7',
+    status: 'PUBLISHED',
+    scheduledDate: '2026-05-01',
+    timeWindow: '08:00-12:00',
+    currentSize: 3,
+    serviceTypeName: 'Routine Inspection',
+    isCurrentDay: false,
+  };
+
+  it('accepts groups carrying the isCurrentDay flag', () => {
+    expect(findMoveTargetsResponseSchema.safeParse({ groups: [group] }).success).toBe(true);
+  });
+
+  it('requires isCurrentDay on every group', () => {
+    const { isCurrentDay: _omit, ...withoutFlag } = group;
+    expect(findMoveTargetsResponseSchema.safeParse({ groups: [withoutFlag] }).success).toBe(false);
+  });
+
+  it('accepts an empty list with a reason', () => {
+    expect(findMoveTargetsResponseSchema.safeParse({ groups: [], reason: 'NOT_GROUPED' }).success).toBe(true);
+  });
+});
+
+describe('moveAppointmentsToGroupRequestSchema', () => {
+  it('accepts 1..30 appointment ids', () => {
+    expect(moveAppointmentsToGroupRequestSchema.safeParse({ appointmentIds: [validUuid] }).success).toBe(true);
+  });
+
+  it('rejects empty lists', () => {
+    expect(moveAppointmentsToGroupRequestSchema.safeParse({ appointmentIds: [] }).success).toBe(false);
+  });
+});
+
+describe('moveAppointmentsToGroupResponseSchema', () => {
+  it('accepts a mixed-result envelope', () => {
+    const result = moveAppointmentsToGroupResponseSchema.safeParse({
+      results: [
+        { appointmentId: validUuid, status: 'OK' },
+        { appointmentId: validUuid, status: 'NOT_GROUPED', error: { code: 'NOT_GROUPED', message: 'x' } },
+      ],
+      movedCount: 1,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an unknown status', () => {
+    const result = moveAppointmentsToGroupResponseSchema.safeParse({
+      results: [{ appointmentId: validUuid, status: 'WAT' }],
+      movedCount: 0,
+    });
+    expect(result.success).toBe(false);
   });
 });

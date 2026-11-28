@@ -372,7 +372,6 @@ import type { ReportRouteContainer } from '../modules/report/interfaces/report.r
 import { PrismaNotificationRepository } from '../modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
-import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
 import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
 import { createAppointmentFlowTypeReader } from '../modules/notification/infrastructure/prisma-appointment-flow-type.reader';
 import { createAgencyForwardRecipientReader } from '../modules/notification/infrastructure/prisma-agency-forward-recipient.reader';
@@ -391,9 +390,6 @@ import { PollRetryableNotificationsUseCase } from '../modules/notification/appli
 import { PollSmsDeliveryUseCase } from '../modules/notification/application/use-cases/poll-sms-delivery.use-case';
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
-import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
-import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
-import { RecordConsentOptOutUseCase } from '../modules/notification/application/use-cases/record-consent-opt-out.use-case';
 import { PrismaTenantEtaPlanReader } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-plan.reader';
 import type { ITenantEtaPlanReader } from '../modules/tenant-eta/domain/tenant-eta-plan.reader';
 import { PrismaTenantEtaNoticeLog } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-notice-log';
@@ -488,8 +484,6 @@ import { GetFyAvailableDatesUseCase } from '../modules/fy/application/use-cases/
 import { AddFyAppointmentNoteUseCase } from '../modules/fy/application/use-cases/add-fy-appointment-note.use-case';
 import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use-cases/update-fy-appointment-contact.use-case';
 import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
-import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
-import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/application/subscribers/notify-on-group-accepted.subscriber';
 import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/application/subscribers/notify-on-group-inspector-change.subscriber';
 import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
@@ -531,6 +525,8 @@ import { BulkReopenForRescheduleUseCase } from '../modules/appointment/applicati
 import { AddAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/add-appointments-to-group.use-case';
 import { CheckAppointmentsEligibilityForGroupUseCase } from '../modules/service-group/application/use-cases/check-appointments-eligibility-for-group.use-case';
 import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-addable-groups-for-appointments.use-case';
+import { FindMoveTargetGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-move-target-groups-for-appointments.use-case';
+import { MoveAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/move-appointments-to-group.use-case';
 import { GetGroupPortalLinkPlanUseCase } from '../modules/service-group/application/use-cases/get-group-portal-link-plan.use-case';
 import { SendGroupPortalLinksUseCase } from '../modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { GetAvailablePeriodsUseCase } from '../modules/billing/application/use-cases/get-available-periods.use-case';
@@ -570,7 +566,6 @@ import { PrismaDayPlanRepository } from '../modules/day-plan/infrastructure/pris
 import { PrismaDayPlanInputReader } from '../modules/day-plan/infrastructure/prisma-day-plan-input.reader';
 import { ComputeDayPlanUseCase } from '../modules/day-plan/application/use-cases/compute-day-plan.use-case';
 import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/get-my-day-plan.use-case';
-import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-for-operator.use-case';
 import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
 import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
 import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
@@ -670,7 +665,6 @@ export interface AppContainer {
   appCredential: AppCredentialRouteContainer;
   integration: IntegrationRouteContainer;
   fy: FyRouteContainer;
-  fyWebhookDispatcher: FyWebhookDispatcher;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
@@ -854,7 +848,6 @@ export function createContainer(logger: Logger): AppContainer {
         webhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
       }),
       mapbox: compactConfig({ accessToken: env.MAPBOX_ACCESS_TOKEN }),
-      fy_webhook: compactConfig({ url: env.FY_WEBHOOK_URL, secret: env.FY_WEBHOOK_SECRET }),
     },
     logger,
   );
@@ -886,7 +879,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo, propertyFileRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo, propertyIssueRepo);
   const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger, geocodingService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
   const rawAddressLookupService = new DynamicAddressLookupService(integrationConfigResolver);
@@ -1308,15 +1301,11 @@ export function createContainer(logger: Logger): AppContainer {
   const getMyDayPlanUseCase = new GetMyDayPlanUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
   );
-  const getDayPlanForOperatorUseCase = new GetDayPlanForOperatorUseCase(
-    dayPlanInputReader, dayPlanRepo, authorizationService, dayPlanClock,
-  );
   const saveDayPlanOrderUseCase = new SaveDayPlanOrderUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
   );
   const recalculateDayPlanUseCase = new RecalculateDayPlanUseCase(
-    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, authorizationService,
-    publishSystemInspectorNoticeUseCase, auditService, dayPlanClock,
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
   );
   const setDayPlanOriginUseCase = new SetDayPlanOriginUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, geocodingService, auditService, logger,
@@ -1340,7 +1329,6 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getDayPlanSheetUseCase = new GetDayPlanSheetUseCase(
     getMyDayPlanUseCase,
-    getDayPlanForOperatorUseCase,
     new DayPlanSheetRenderer(new ExcelJsXlsxGenerator(), new PdfKitDayPlanSheetGenerator()),
     auditService,
     dayPlanClock,
@@ -1712,6 +1700,25 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo,
     authorizationService,
   );
+  // Move appointments already in a live group to a different active group.
+  const findMoveTargetGroupsForAppointmentsUseCase = new FindMoveTargetGroupsForAppointmentsUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
+  const moveAppointmentsToGroupUseCase = new MoveAppointmentsToGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    inspectorRepo,
+    serviceRegionRepo,
+    confirmationCycleService,
+    cancelEmptyGroupService,
+    idempotencyService,
+    domainEventBus,
+    logger,
+  );
 
   // Group "Send portal link" — preview + execute. Reuses the per-appointment
   // GeneratePortalTokenUseCase and the bulk-resend idempotency bucket.
@@ -1851,7 +1858,6 @@ export function createContainer(logger: Logger): AppContainer {
   const htmlToText = new HtmlToTextService();
 
   // Notification use cases
-  const consentRepo = new PrismaNotificationConsentRepository(prisma);
   const getTenantSettings = createTenantSettingsReader(prisma);
   const getAppointmentFlowType = createAppointmentFlowTypeReader(prisma);
   const getAgencyForwardRecipient = createAgencyForwardRecipientReader(prisma);
@@ -1859,7 +1865,6 @@ export function createContainer(logger: Logger): AppContainer {
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
     templateRepo: notificationTemplateRepo,
-    consentRepo,
     attemptRepo: notificationAttemptRepo,
     emailProvider,
     smsProvider,
@@ -1922,20 +1927,6 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, branchRepo, tenantRepo, notificationRepo,
     buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL,
-  );
-  const listConsentsByRecipientUseCase = new ListConsentsByRecipientUseCase(
-    consentRepo,
-    authorizationService,
-  );
-  const overrideConsentUseCase = new OverrideConsentUseCase(
-    consentRepo,
-    authorizationService,
-    auditService,
-  );
-  const recordConsentOptOutUseCase = new RecordConsentOptOutUseCase(
-    consentRepo,
-    authorizationService,
-    auditService,
   );
   // F06 tenant-eta plan reader (consumed by TASK-F06-2; no HTTP route here).
   const tenantEtaPlanReader = new PrismaTenantEtaPlanReader(prisma, inspectorFieldEventRepo);
@@ -2033,9 +2024,6 @@ export function createContainer(logger: Logger): AppContainer {
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  // Fy outbound webhooks: subscriber enqueues, worker delivers with retry.
-  const fyWebhookDispatcher = new FyWebhookDispatcher(integrationConfigResolver);
-  new FyWebhookSubscriber(integrationConfigResolver, fyRepo, importJobQueue, logger).register(domainEventBus);
   // Rental-tenant notifications for group acceptance paths (marketplace accept
   // + manual assign), which schedule appointments outside the transition use case.
   new NotifyOnGroupAcceptedSubscriber(serviceGroupRepo, notifyOnStatusTransitionHandler, logger).register(domainEventBus);
@@ -2157,7 +2145,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
     tenantEta: {
       planReader: tenantEtaPlanReader,
       sendMorningEtaNoticesUseCase,
@@ -2320,6 +2308,7 @@ export function createContainer(logger: Logger): AppContainer {
       tenantRepo,
       idempotencyService,
       getPortalLinkUseCase,
+      apiKeyRepo,
     },
     audit: {
       listAuditLogsUseCase,
@@ -2364,6 +2353,8 @@ export function createContainer(logger: Logger): AppContainer {
       addAppointmentsToGroupUseCase,
       checkAppointmentsEligibilityForGroupUseCase,
       findAddableGroupsForAppointmentsUseCase,
+      findMoveTargetGroupsForAppointmentsUseCase,
+      moveAppointmentsToGroupUseCase,
       getGroupPortalLinkPlanUseCase,
       sendGroupPortalLinksUseCase,
       changeGroupInspectorUseCase,
@@ -2537,9 +2528,6 @@ export function createContainer(logger: Logger): AppContainer {
       pollSmsDeliveryUseCase,
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
-      listConsentsByRecipientUseCase,
-      overrideConsentUseCase,
-      recordConsentOptOutUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
@@ -2574,6 +2562,7 @@ export function createContainer(logger: Logger): AppContainer {
       listContactsUseCase,
       jwtService,
       tenantRepo,
+      apiKeyRepo,
     },
     appCredential: {
       createAppCredentialUseCase,
@@ -2626,7 +2615,6 @@ export function createContainer(logger: Logger): AppContainer {
         resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),
       };
     })(),
-    fyWebhookDispatcher,
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,

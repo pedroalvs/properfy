@@ -231,6 +231,103 @@ describe('PropertyCreatePage', () => {
     });
   });
 
+  describe('V-1 address verification (422 ADDRESS_NOT_VERIFIED)', () => {
+    const TENANT_ID = '22222222-2222-2222-2222-222222222222';
+
+    async function fillAndSubmit() {
+      renderPage(`/properties/new?tenantId=${TENANT_ID}`);
+      fireEvent.click(screen.getByLabelText('Type'));
+      fireEvent.click(screen.getByText('House'));
+      fireEvent.change(screen.getByLabelText('Street'), { target: { value: 'Old Coach Rd' } });
+      fireEvent.change(screen.getByLabelText('Suburb'), { target: { value: 'Kurrajong' } });
+      fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: '2758' } });
+      fireEvent.click(screen.getByLabelText('State'));
+      fireEvent.click(screen.getByText('New South Wales'));
+      fireEvent.click(screen.getByText('Create Property'));
+    }
+
+    function mock422(reason: string) {
+      (api.POST as ReturnType<typeof vi.fn>).mockResolvedValue({
+        error: { error: { code: 'ADDRESS_NOT_VERIFIED', message: 'x', details: [{ field: 'address', reason }] } },
+      });
+    }
+
+    it('shows the reason block, marks the address fields and focuses Street on COARSE_RESULT', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('We could only locate the area, not the exact address.');
+      });
+      expect(screen.getByLabelText('Street')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByLabelText('Suburb')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByLabelText('Postcode')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByLabelText('Street')).toHaveFocus();
+    });
+
+    it('shows the NOT_FOUND copy for a null geocode', async () => {
+      mock422('NOT_FOUND');
+      await fillAndSubmit();
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent("We couldn't find this address.");
+      });
+    });
+
+    it('reveals the manual-pin Coordinates section via "Set location manually"', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+      await waitFor(() => screen.getByRole('alert'));
+      expect(screen.queryByLabelText('Latitude')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText('Set location manually'));
+      expect(screen.getByLabelText('Latitude')).toBeInTheDocument();
+      expect(screen.getByLabelText('Longitude')).toBeInTheDocument();
+    });
+
+    it('clears the error block and field marks once a COMPLETE manual pin is entered (polish b)', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+      await waitFor(() => screen.getByRole('alert'));
+      fireEvent.click(screen.getByText('Set location manually'));
+      // Only latitude (incomplete pin) → the error is still shown.
+      fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '-33.4521' } });
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByLabelText('Street')).toHaveAttribute('aria-invalid', 'true');
+      // Complete the pair → the error block and the field marks disappear.
+      fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '150.6612' } });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Street')).not.toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('clears the error block when an address field is corrected', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+      await waitFor(() => screen.getByRole('alert'));
+      fireEvent.change(screen.getByLabelText('Street'), { target: { value: '12 George St' } });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Street')).not.toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('blocks the submit and marks the missing coordinate when only latitude is filled (V-1)', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+      await waitFor(() => screen.getByRole('alert'));
+      fireEvent.click(screen.getByText('Set location manually'));
+      const mockPost = api.POST as ReturnType<typeof vi.fn>;
+      expect(mockPost).toHaveBeenCalledTimes(1); // the initial address-verification submit
+
+      // Fill ONLY latitude, then submit again — the incomplete pair must block.
+      fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '-33.4521' } });
+      fireEvent.click(screen.getByText('Create Property'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Longitude')).toHaveAttribute('aria-invalid', 'true');
+      });
+      expect(screen.getByText('Latitude and longitude must be provided together')).toBeInTheDocument();
+      // No second request: submission was blocked before the POST (no silent drop).
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('keeps the pre-filled branch under React StrictMode (no reset-effect regression)', async () => {
     mockListEndpoints({
       tenants: [{ id: 'tenant-1', name: 'Agency One' }],

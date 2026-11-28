@@ -114,6 +114,7 @@ function cand(appointmentId: string, suburb: string, over: Partial<DayPlanCandid
     keyRequired: true,
     meetingLocation: 'Lockbox 4321',
     rentalTenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantNote: null,
     contacts: [],
     startedAt: null,
     finishedAt: null,
@@ -258,6 +259,42 @@ describe('PublishDayPlansUseCase', () => {
 
     expect(h.compute.execute).toHaveBeenCalledWith(expect.objectContaining({ trigger: 'SCHEDULED_PUBLISH' }));
     expect(result).toMatchObject({ published: 1, notified: 1 });
+  });
+
+  it('does NOT send the route-ready notice for a DRAFT plan (publication window closed), leaving notifiedAt null', async () => {
+    // Option 1 / part (b): a plan computed as DRAFT (e.g. the inspector's tz window is
+    // still closed) is next-day but not published — no "tomorrow" notice, notifiedAt stays null.
+    const h = build();
+    h.repo.loadPublishDue.mockResolvedValue([{ inspectorId: 'insp-1', date: '2026-11-05' }]);
+    h.compute.execute.mockResolvedValue(
+      makeRecord('plan-1', 'insp-1', { status: 'DRAFT', publishedAt: null, notifiedAt: null }),
+    );
+    h.reader.loadCandidates.mockResolvedValue([cand('a-1', 'Surry Hills'), cand('a-2', 'Bondi'), cand('a-3', 'Newtown')]);
+
+    const result = await h.uc.execute({ now: NOW });
+
+    expect(h.notices.execute).not.toHaveBeenCalled();
+    expect(h.repo.markNotified).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ notified: 0 });
+  });
+
+  it('does NOT send the route-ready notice for a same-day plan opened via ON_OPEN (option 1, part a)', async () => {
+    // A lingering publish claim can surface TODAY's plan in the due set. The inspector
+    // already opened it (ON_OPEN → PUBLISHED, notifiedAt null), but today is not "tomorrow",
+    // so the "Your route for tomorrow is ready" notice must not fire and notifiedAt stays null.
+    const h = build();
+    h.repo.loadPublishDue.mockResolvedValue([{ inspectorId: 'insp-1', date: '2026-11-04' }]);
+    h.repo.findByInspectorAndDate.mockResolvedValue(
+      makeRecord('plan-1', 'insp-1', { planDate: '2026-11-04', publishedAt: NOW, notifiedAt: null }),
+    );
+    h.reader.loadCandidates.mockResolvedValue([cand('a-1', 'Surry Hills')]);
+
+    const result = await h.uc.execute({ now: NOW });
+
+    expect(h.compute.execute).not.toHaveBeenCalled();
+    expect(h.notices.execute).not.toHaveBeenCalled();
+    expect(h.repo.markNotified).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ published: 0, notified: 0, skipped: 1 });
   });
 
   it('stops the batch and asks for a continuation when the provider defers (rate limit)', async () => {

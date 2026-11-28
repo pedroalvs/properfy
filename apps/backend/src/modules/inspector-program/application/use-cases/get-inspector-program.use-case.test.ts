@@ -100,6 +100,7 @@ function buildUseCase(overrides?: {
   progress?: GoalProgress[];
   indexes?: CurrentIndex[];
   awards?: RewardAward[];
+  minimumVolume?: number;
 }) {
   const standing = {
     getStanding: async () => overrides?.standingValue ?? standingFixture,
@@ -117,10 +118,13 @@ function buildUseCase(overrides?: {
     findRecentNonVoidByCreatedAt: async () => [],
   };
   const settings: IPlatformSettingsReader = {
-    get: (async () => ({
-      levels: { silverMinScore: 60, goldMinScore: 85 },
-      earlyAccess: { enabled: false, hours: 12, minLevel: 'GOLD', enabledAt: null },
-    })) as IPlatformSettingsReader['get'],
+    get: (async (key: string) => {
+      if (key === 'reliabilityIndex') return { minimumVolume: overrides?.minimumVolume ?? 7 };
+      return {
+        levels: { silverMinScore: 60, goldMinScore: 85 },
+        earlyAccess: { enabled: false, hours: 12, minLevel: 'GOLD', enabledAt: null },
+      };
+    }) as IPlatformSettingsReader['get'],
   };
   const clock: Clock = { now: () => NOW };
   return new GetInspectorProgramUseCase(standing, indexReader, recentAwards, settings, clock);
@@ -157,9 +161,17 @@ describe('GetInspectorProgramUseCase', () => {
 
   it('maps the standing without exposing the raw position field', async () => {
     const res = await buildUseCase().execute({ inspectorId: ME });
-    expect(res.standing.index).toEqual({ score: 88.3, status: 'SCORED', snapshotDate: '2026-11-08' });
+    expect(res.standing.index).toEqual({ score: 88.3, status: 'SCORED', snapshotDate: '2026-11-08', minimumVolume: 7 });
     expect(res.standing.level).toBe('GOLD');
     expect(res.standing.streak).toEqual({ cycle: 'WEEKLY', count: 3, atRisk: false });
+  });
+
+  it('exposes the reliability-index minimum volume from the platform setting on standing.index', async () => {
+    const res = await buildUseCase({ minimumVolume: 1 }).execute({ inspectorId: ME });
+    expect(res.standing.index.minimumVolume).toBe(1);
+
+    const other = await buildUseCase({ minimumVolume: 25 }).execute({ inspectorId: ME });
+    expect(other.standing.index.minimumVolume).toBe(25);
   });
 
   it('maps awards with the inspector note and never the internal void reason', async () => {

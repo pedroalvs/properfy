@@ -85,6 +85,29 @@ describe('OriginSheet', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
+  it('maps the rule-A reason to the shared per-reason copy (V-4)', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    mockPut.mockResolvedValue({
+      data: undefined,
+      error: {
+        error: {
+          code: 'DAY_PLAN_ORIGIN_NOT_FOUND',
+          message: 'We could only locate the area, not the exact address.',
+          details: [{ field: 'address', reason: 'COARSE_RESULT' }],
+        },
+      },
+      response: { status: 422 },
+    });
+    renderWithProviders(<OriginSheet open date={DATE} onOpenChange={onOpenChange} />);
+    await fillValidAddress(user);
+    await user.click(screen.getByRole('button', { name: 'Use this address' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('We could only locate the area, not the exact address.');
+    expect(alert).toHaveTextContent('Add the street number, or correct the street name.');
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it('DAY_PLAN_ALREADY_STARTED: shows the message, closes after 2s and invalidates (L-F04-07)', async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
@@ -100,6 +123,22 @@ describe('OriginSheet', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
     // The sheet auto-closes after a 2s delay.
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false), { timeout: 3000 });
+  });
+
+  it('O-12: clears the rejection message as soon as the user edits a field', async () => {
+    const user = userEvent.setup();
+    mockPut.mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'DAY_PLAN_ORIGIN_NOT_FOUND', message: "We couldn't find this address. Check it and try again." } },
+      response: { status: 422 },
+    });
+    renderWithProviders(<OriginSheet open date={DATE} onOpenChange={vi.fn()} />);
+    await fillValidAddress(user);
+    await user.click(screen.getByRole('button', { name: 'Use this address' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    // Editing any field clears the stale message.
+    await user.type(screen.getByLabelText('Street'), '2');
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
   it('disables submit and explains when offline', () => {

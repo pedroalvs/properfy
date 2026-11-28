@@ -90,7 +90,7 @@ export function TemplateTable({
       label: 'Class',
       width: '130px',
       headerRender: () => (
-        <Tooltip label="How the message is treated for delivery: Transactional messages are always sent; Operational and Marketing messages respect the recipient's notification opt-out.">
+        <Tooltip label="How the message is treated for delivery: Transactional messages are always sent; Operational messages count against the daily sending cap. Marketing messages are not sent.">
           <span className="inline-flex items-center gap-1">
             Class
             <i className="mdi mdi-information-outline text-text-muted" aria-hidden="true" />

@@ -13,7 +13,7 @@ import { getErrorMessage } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useApiKeys, useRevokeApiKey } from '../hooks/useApiKeys';
 import { CreateApiKeyDialog } from './CreateApiKeyDialog';
-import { isFyKey } from './fyKey';
+import { FY_KEY_TYPE, type MachineKeyType } from './machineKeyType';
 
 export function keyStatus(key: ApiKeyResponse): { label: string; className: string } {
   if (key.revokedAt) return { label: 'Revoked', className: 'bg-error/10 text-error' };
@@ -28,15 +28,22 @@ function formatKeyDate(value: string | null): string {
   return value ? formatInstantDate(value) : '—';
 }
 
+interface ApiKeysTabProps {
+  /** Which integration's keys to manage — fixes the create role/scope, copy and filter. */
+  keyType?: MachineKeyType;
+}
+
 /**
- * Inbound API keys for external systems (n8n / AI automations) calling the
- * Properfy API with the X-API-Key header. The plaintext key is shown exactly
- * once after creation.
+ * Inbound API keys for an integration (Fy agent, Mail Bot) calling the Properfy
+ * API with the X-API-Key header. The plaintext key is shown exactly once after
+ * creation. The list is scoped to the integration via `keyType.listFilter`.
  */
-export function ApiKeysTab() {
+export function ApiKeysTab({ keyType = FY_KEY_TYPE }: ApiKeysTabProps = {}) {
   const { showError } = useSnackbar();
-  const { data: keys, isLoading, isError, error, refetch } = useApiKeys();
+  const { data: allKeys, isLoading, isError, error, refetch } = useApiKeys();
   const revokeKey = useRevokeApiKey();
+
+  const keys = (allKeys ?? []).filter(keyType.listFilter);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyResponse | null>(null);
@@ -65,21 +72,20 @@ export function ApiKeysTab() {
   return (
     <div className="space-y-4">
       <InfoBanner>
-        API keys let the Fy agent call the Properfy API using the{' '}
+        API keys let this integration call the Properfy API using the{' '}
         <code className="font-mono text-xs">X-API-Key</code> header. Every key is created with the{' '}
-        <code className="font-mono text-xs">bot:fy</code> scope and only reaches the Fy agent
-        surface.
+        <code className="font-mono text-xs">{keyType.scopeCode}</code> scope.
       </InfoBanner>
 
       <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)}>New Fy key</Button>
+        <Button onClick={() => setCreateOpen(true)}>{keyType.newKeyLabel}</Button>
       </div>
 
-      {!keys || keys.length === 0 ? (
+      {keys.length === 0 ? (
         <EmptyState
           icon="mdi-key-outline"
           title="No API keys"
-          description="Create a key to allow the Fy agent to call the Properfy API."
+          description="Create a key to let this integration call the Properfy API."
         />
       ) : (
         <div className="overflow-x-auto rounded bg-card-bg shadow-sm">
@@ -101,9 +107,9 @@ export function ApiKeysTab() {
                   <tr key={key.id} className="border-b border-black/5 last:border-b-0">
                     <td className="px-4 py-3">
                       {key.name}
-                      {!isFyKey(key) && (
+                      {keyType.legacyBadgeLabel && !keyType.isKeyOfType(key) && (
                         <span className="ml-2 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
-                          Legacy — not Fy contract
+                          {keyType.legacyBadgeLabel}
                         </span>
                       )}
                     </td>
@@ -134,7 +140,7 @@ export function ApiKeysTab() {
         </div>
       )}
 
-      <CreateApiKeyDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateApiKeyDialog open={createOpen} onClose={() => setCreateOpen(false)} keyType={keyType} />
 
       <ConfirmDialog
         open={revokeTarget !== null}

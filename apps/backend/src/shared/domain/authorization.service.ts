@@ -57,39 +57,6 @@ export class AuthorizationService {
   }
 
   /**
-   * Asserts the actor can access data in the target tenant.
-   * AM bypasses (global scope). All other roles — including OP per
-   * Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13) — must match.
-   */
-  assertTenantScope(
-    actor: AuthContext,
-    targetTenantId: string,
-    context: AuthorizationContext,
-  ): void {
-    if (actor.role === 'AM') return;
-    if (actor.tenantId === targetTenantId) return;
-
-    this.auditService.log({
-      action: 'authorization.denied',
-      actorType: 'USER',
-      actorId: actor.userId,
-      entityType: context.entityType,
-      entityId: context.entityId,
-      tenantId: actor.tenantId ?? undefined,
-      metadata: {
-        attemptedAction: context.action,
-        reason: 'TENANT_SCOPE_VIOLATION',
-        targetTenantId,
-      },
-    });
-
-    throw new ForbiddenError(
-      'TENANT_SCOPE_VIOLATION',
-      'Cross-tenant access is forbidden',
-    );
-  }
-
-  /**
    * Prevents an actor from approving their own work. A null originator (a
    * system-minted entry, which has no human initiator) can never be a
    * self-approval, so any AM/OP may approve it.

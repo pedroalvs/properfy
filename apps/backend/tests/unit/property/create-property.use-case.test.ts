@@ -499,7 +499,7 @@ describe('CreatePropertyUseCase', () => {
       expect(sendJob).not.toHaveBeenCalled();
     });
 
-    it('marks FAILED (no async retry) when geocoding finds no match', async () => {
+    it('rejects with 422 ADDRESS_NOT_VERIFIED (NOT_FOUND) and writes nothing when geocoding finds no match (V-1)', async () => {
       vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
       const geocodingService = makeGeocodingService();
       geocodingService.geocode.mockResolvedValue(null);
@@ -508,12 +508,70 @@ describe('CreatePropertyUseCase', () => {
         geocodingService as never,
       );
 
-      const result = await uc.execute(baseInput);
+      await expect(uc.execute(baseInput)).rejects.toMatchObject({
+        code: 'ADDRESS_NOT_VERIFIED',
+        statusCode: 422,
+        details: [{ field: 'address', reason: 'NOT_FOUND' }],
+      });
+      expect(propertyRepo.save).not.toHaveBeenCalled();
+      expect(sendJob).not.toHaveBeenCalled();
+    });
 
-      expect(result.geocodingStatus).toBe('FAILED');
-      expect(result.latitude).toBeNull();
+    it('rejects with 422 COARSE_RESULT and writes nothing for a coarse (non-address) result (V-1)', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      geocodingService.geocode.mockResolvedValue({ lat: -33.8, lng: 151.1, placeType: 'locality', relevance: 0.99 });
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      await expect(uc.execute(baseInput)).rejects.toMatchObject({
+        code: 'ADDRESS_NOT_VERIFIED',
+        statusCode: 422,
+        details: [{ field: 'address', reason: 'COARSE_RESULT' }],
+      });
+      expect(propertyRepo.save).not.toHaveBeenCalled();
+      expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('rejects with 422 LOW_RELEVANCE and writes nothing for a weak address match (V-1)', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      geocodingService.geocode.mockResolvedValue({ lat: -33.8, lng: 151.1, placeType: 'address', relevance: 0.5 });
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      await expect(uc.execute(baseInput)).rejects.toMatchObject({
+        code: 'ADDRESS_NOT_VERIFIED',
+        statusCode: 422,
+        details: [{ field: 'address', reason: 'LOW_RELEVANCE' }],
+      });
+      expect(propertyRepo.save).not.toHaveBeenCalled();
+      expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('stores MANUAL and never geocodes when a manual coordinate pair is supplied (V2 rural escape)', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      // Even if the geocoder would reject this address, the manual pin wins.
+      geocodingService.geocode.mockResolvedValue(null);
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      const result = await uc.execute({ ...baseInput, latitude: -33.4521, longitude: 150.6612 });
+
+      expect(geocodingService.geocode).not.toHaveBeenCalled();
+      expect(result.geocodingStatus).toBe('MANUAL');
+      expect(result.latitude).toBe(-33.4521);
+      expect(result.longitude).toBe(150.6612);
       const saved = vi.mocked(propertyRepo.save).mock.calls[0]![0];
-      expect(saved.geocodedPermanentlyAt).toBeNull();
+      expect(saved.geocodingStatus).toBe('MANUAL');
+      expect(saved.lat).toBe(-33.4521);
       expect(sendJob).not.toHaveBeenCalled();
     });
 

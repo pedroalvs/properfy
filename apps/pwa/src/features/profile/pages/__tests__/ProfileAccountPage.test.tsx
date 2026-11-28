@@ -25,10 +25,16 @@ vi.mock('@/services/api', () => ({
 vi.mock('../../hooks/useUpdateInspectorSelf', () => {
   class UpdateInspectorSelfError extends Error {
     readonly details?: { path: (string | number)[]; message: string }[];
-    constructor(message: string, details?: { path: (string | number)[]; message: string }[]) {
+    readonly addressNotVerifiedReason?: string;
+    constructor(
+      message: string,
+      details?: { path: (string | number)[]; message: string }[],
+      addressNotVerifiedReason?: string,
+    ) {
       super(message);
       this.name = 'UpdateInspectorSelfError';
       this.details = details;
+      this.addressNotVerifiedReason = addressNotVerifiedReason;
     }
   }
   return {
@@ -40,6 +46,11 @@ vi.mock('../../hooks/useUpdateInspectorSelf', () => {
     UpdateInspectorSelfError,
   };
 });
+
+const mockIsOnline = vi.fn(() => true);
+vi.mock('@/hooks/useIsOnline', () => ({
+  useIsOnline: () => mockIsOnline(),
+}));
 
 vi.mock('../../hooks/useUpdateMyTimezone', () => ({
   useUpdateMyTimezone: () => ({
@@ -287,6 +298,7 @@ describe('ProfileAccountPage — Base address card', () => {
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
     mockUsePrompt.mockImplementation(() => {});
     mockUseInspectorMe.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockIsOnline.mockReturnValue(true);
   });
 
   it('pre-fills the fields from a valid saved base and shows no warning', () => {
@@ -400,7 +412,9 @@ describe('ProfileAccountPage — Base address card', () => {
     expect(status).toBeInTheDocument();
   });
 
-  it('shows the geocode-failed warning', async () => {
+  // V-3: baseGeocodeFailed now means only "the provider couldn't check it right
+  // now" (an invalid address is rejected with a 422 instead), so the copy changed.
+  it('shows the provider-unavailable warning when the address was saved but not checked', async () => {
     mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: null }));
     mockMutateInspectorSelf.mockResolvedValue({ baseGeocodeFailed: true });
     const user = userEvent.setup();
@@ -409,8 +423,36 @@ describe('ProfileAccountPage — Base address card', () => {
     await user.type(screen.getByLabelText('Suburb'), 'Carlton');
     await user.click(screen.getByRole('button', { name: /save address/i }));
     expect(
-      await screen.findByText("Saved, but we couldn't locate this address. Please check it."),
+      await screen.findByText("Saved. We couldn't check this address right now."),
     ).toBeInTheDocument();
+  });
+
+  it('shows the per-reason error block and does not save when the address is unverifiable (422)', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: null }));
+    mockMutateInspectorSelf.mockRejectedValue(
+      new UpdateInspectorSelfError('The address could not be verified.', undefined, 'COARSE_RESULT'),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    await user.clear(screen.getByLabelText('Suburb'));
+    await user.type(screen.getByLabelText('Suburb'), 'Carlton');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('We could only locate the area, not the exact address.');
+    expect(alert).toHaveTextContent('Add the street number, or correct the street name.');
+  });
+
+  it('blocks saving offline with a dedicated message and a disabled button', async () => {
+    mockIsOnline.mockReturnValue(false);
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    await user.clear(screen.getByLabelText('Suburb'));
+    await user.type(screen.getByLabelText('Suburb'), 'Carlton');
+    expect(screen.getByText("You're offline. Connect to save this address.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save address/i })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    expect(mockMutateInspectorSelf).not.toHaveBeenCalled();
   });
 
   it('focuses the first empty field when opened at #base-address', async () => {

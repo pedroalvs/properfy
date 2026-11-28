@@ -1,8 +1,26 @@
+import { ADDRESS_NOT_VERIFIED_CODE, type AddressNotVerifiedReason } from '@properfy/shared';
 import { NotFoundError, ConflictError, DomainError, ValidationError } from '../../../shared/domain/errors';
 
 export class InspectorNotFoundError extends NotFoundError {
   constructor() {
     super('INSPECTOR_NOT_FOUND', 'Inspector not found');
+  }
+}
+
+/**
+ * 422 raised on save (create, operator update or inspector self-update) when the
+ * base address cannot be verified against the permanent geocoder (rule A, V-3).
+ * Nothing is written. `details[0].reason` carries the machine reason
+ * (`NOT_FOUND` / `COARSE_RESULT` / `LOW_RELEVANCE`) so the client renders the
+ * matching `ADDRESS_NOT_VERIFIED_MESSAGES` copy and marks the address fields.
+ * A provider-unavailable failure does NOT raise this — the address is saved
+ * without coordinates and `baseGeocodeFailed` is returned instead (V4).
+ */
+export class InspectorBaseAddressNotVerifiedError extends DomainError {
+  constructor(reason: AddressNotVerifiedReason) {
+    super(ADDRESS_NOT_VERIFIED_CODE, 'The address could not be verified.', 422, [
+      { field: 'address', reason },
+    ]);
   }
 }
 

@@ -50,10 +50,28 @@ export const createPropertySchema = z
     furnished: z.boolean().optional(),
     linenProvided: z.boolean().optional(),
     rentAmount: z.number().nonnegative().max(9999999999.99).optional(),
+    // Manual pin (V-1 / decision V2): when both are present the address text is
+    // not validated and the property is stored MANUAL — the escape for a
+    // legitimate rural address the geocoder can only locate coarsely.
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
     notes: z.string().max(2000).optional(),
     rulesJson: propertyRulesSchema.optional(),
   })
-  .merge(propertyAddressSchema);
+  .merge(propertyAddressSchema)
+  // A manual pin needs BOTH coordinates or neither — a lone value is a mistake
+  // (the user thinks they pinned, but the address would still be validated).
+  .superRefine((data, ctx) => {
+    const latSet = data.latitude !== undefined && data.latitude !== null;
+    const lngSet = data.longitude !== undefined && data.longitude !== null;
+    if (latSet !== lngSet) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'latitude and longitude must be provided together',
+        path: [latSet ? 'longitude' : 'latitude'],
+      });
+    }
+  });
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 
 export const updatePropertySchema = z

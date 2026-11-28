@@ -11,6 +11,7 @@ import type { MintPortalTokenService } from '../../domain/mint-portal-token.serv
 import { TOKEN_HASH_COLUMN } from '../../domain/mint-portal-token.service';
 import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
+import { CYCLE_UNIQUE_CONSTRAINT_COLUMNS } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
@@ -19,7 +20,9 @@ import {
   type AfterCommitResult,
   type TxContext,
 } from '../../../../shared/application/unit-of-work';
+import type { AuthContext as SharedAuthContext, UserRole } from '@properfy/shared';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import { BuildNotificationPayloadService } from '../../../notification/domain/build-notification-payload.service';
 import {
@@ -108,12 +111,13 @@ export class GeneratePortalTokenUseCase {
         this.cycleService ? this.prisma : undefined,
         (ctx) => this.executeInTransaction(input, ctx),
       );
-    // Replay the whole transaction on either regenerable/replayable conflict:
-    // the minted token hash, or the confirmation cycle's
-    // @@unique([appointment_id, cycle_number]) that a concurrent createInitial
-    // can lose (createInitial rethrows that P2002 for us to replay here).
+    // Replay the whole transaction on any regenerable/replayable conflict: the
+    // minted token hash, or EITHER confirmation-cycle uniqueness invariant a
+    // concurrent createInitial can lose — `@@unique([appointment_id, cycle_number])`
+    // and the partial `appointment_active_cycle_unique` (one active cycle per
+    // appointment). createInitial rethrows the caller-owned P2002 for us to replay.
     const prepared = this.cycleService && this.prisma
-      ? await retryOnUniqueConflict([TOKEN_HASH_COLUMN, 'cycle_number'], prepare)
+      ? await retryOnUniqueConflict([TOKEN_HASH_COLUMN, ...CYCLE_UNIQUE_CONSTRAINT_COLUMNS], prepare)
       : await prepare();
     return prepared.runAfterCommit();
   }
@@ -173,6 +177,10 @@ export class GeneratePortalTokenUseCase {
         minted.tokenId,
         ctx.tx,
         ctx.defer,
+        // O-11 (option C): record on the appointment if generating the link actually
+        // changes the confirmation status (e.g. re-opening an UNAVAILABLE/NO_RESPONSE).
+        // A CONFIRMED base is adopted, so no reset is recorded for it.
+        { actorId: input.actor.userId, cause: 'PORTAL_LINK_GENERATED' },
       );
     } else {
       const minted = await this.mintPortalTokenService.mint(appointment, tenant);
@@ -212,7 +220,18 @@ export class GeneratePortalTokenUseCase {
     // Service-group re-sends know the member's tenant from their scoped snapshot.
     // Lock that tenant before reading the appointment, so a waiter sees the
     // state committed by the prior resend rather than its pre-lock snapshot.
-    if (lockTenantId && input.actor.role !== 'AM' && lockTenantId !== input.actor.tenantId) {
+    // Cross-tenant roles (AM/OP) may resend across agencies, so the lock only
+    // confines tenant-pinned roles (CL_*) to their own tenant. `requireTenantScope`
+    // returns undefined for cross-tenant and the pinned tenant otherwise
+    // (ALLOWED_ROLES above already excludes INSP/TNT).
+    // ALLOWED_ROLES above restricts this to AM/OP/CL_ADMIN, so the actor is never
+    // INSP/TNT; the local AuthContext carries role+tenantId, which is all the helper
+    // reads (role narrowed to UserRole, inspectorId irrelevant here).
+    const actorTenantScope = requireTenantScope(
+      { ...input.actor, role: input.actor.role as UserRole, inspectorId: null } as SharedAuthContext,
+      'generate portal token',
+    );
+    if (lockTenantId && actorTenantScope !== undefined && lockTenantId !== actorTenantScope) {
       throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
     const tenantIdForQuery = lockTenantId ?? (input.actor.role === 'AM' ? null : input.actor.tenantId);

@@ -262,53 +262,13 @@ describe('DashboardPage', () => {
   });
 });
 
-describe('DashboardPage — New Appointment shortcut', () => {
-  beforeEach(() => {
-    mockRole = 'AM';
-  });
-
-  // CL_USER is intentionally offered the shortcut: the UI gate is coarse by
-  // design (mirrors AppointmentListPage's `canCreate`), and the `create_appointments`
-  // flag is enforced server-side on submit. Hiding it here without also hiding the
-  // list's CTA and the `?new=1` drawer-open effect would diverge, not protect.
-  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])(
-    'offers the New Appointment shortcut to %s',
-    (role) => {
-      mockRole = role;
-      renderPage();
-      // PageHeader renders the primary action twice (desktop button + mobile FAB).
-      expect(
-        screen.getAllByRole('button', { name: /new appointment/i }).length,
-      ).toBeGreaterThanOrEqual(1);
-    },
-  );
-
-  it('hides the shortcut from INSP, who cannot create appointments', () => {
-    // The create drawer only opens for `appointment.create` holders; offering
-    // the button to an inspector would navigate to a param that gets dropped.
-    mockRole = 'INSP';
-    renderPage();
-    expect(screen.queryByRole('button', { name: /new appointment/i })).not.toBeInTheDocument();
-  });
-
-  it('navigates to the canonical create route (/appointments/new) when clicked', async () => {
-    // /appointments/new is redirected by the router to /appointments?new=1, which
-    // opens the create drawer. The dashboard targets the route so the `?new=1`
-    // contract stays owned in one place; the redirect itself is covered by the router.
-    const user = userEvent.setup();
-    const Wrapper = createWrapper();
-    render(
-      <Wrapper>
-        <DashboardPage />
-        <LocationDisplay />
-      </Wrapper>,
-    );
-
-    await user.click(screen.getAllByRole('button', { name: /new appointment/i })[0]!);
-    await waitFor(() => {
-      expect(screen.getByTestId('location-display')).toHaveTextContent('/appointments/new');
-    });
-  });
+// The "New Appointment" CTA moved to the sidebar rail (SidebarCreateButton); it is no longer a
+// dashboard-header action. Its visibility/gating is covered by the Sidebar tests, and the
+// create route by AppointmentListPage / the router.
+it('DashboardPage no longer renders a New Appointment action', () => {
+  mockRole = 'AM';
+  renderPage();
+  expect(screen.queryByRole('button', { name: /new appointment/i })).not.toBeInTheDocument();
 });
 
 // Dashboard is a top-level sidebar screen: no in-header cluster navigation (that moved to the

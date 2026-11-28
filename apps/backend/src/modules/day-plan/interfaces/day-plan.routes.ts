@@ -20,7 +20,6 @@ import { success } from '../../../shared/interfaces/response';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { ITenantRepository } from '../../tenant/domain/tenant.repository';
 import type { GetMyDayPlanUseCase } from '../application/use-cases/get-my-day-plan.use-case';
-import type { GetDayPlanForOperatorUseCase } from '../application/use-cases/get-day-plan-for-operator.use-case';
 import type { SaveDayPlanOrderUseCase } from '../application/use-cases/save-day-plan-order.use-case';
 import type { RecalculateDayPlanUseCase } from '../application/use-cases/recalculate-day-plan.use-case';
 import type {
@@ -34,7 +33,6 @@ import type { PreviewDayPlanOrderUseCase } from '../application/use-cases/previe
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
-  getDayPlanForOperatorUseCase: GetDayPlanForOperatorUseCase;
   saveDayPlanOrderUseCase: SaveDayPlanOrderUseCase;
   recalculateDayPlanUseCase: RecalculateDayPlanUseCase;
   setDayPlanOriginUseCase: SetDayPlanOriginUseCase;
@@ -48,7 +46,6 @@ export interface DayPlanRouteContainer {
 }
 
 const dateParam = z.object({ date: civilDateSchema });
-const operatorParams = z.object({ inspectorId: z.string().uuid(), date: civilDateSchema });
 
 /** An inspector acting on their own plan: role INSP with a linked inspector profile. */
 function requireInspector(role: string, inspectorId: string | null | undefined): string {
@@ -61,7 +58,7 @@ function requireInspector(role: string, inspectorId: string | null | undefined):
   return inspectorId;
 }
 
-/** AM/OP-only platform routes (operator read, sheet, metric). */
+/** AM/OP-only platform routes (the ETA-accuracy metric). */
 function requireOperator(role: string): void {
   if (role !== 'AM' && role !== 'OP') {
     throw new ForbiddenError('FORBIDDEN', `Role ${role} is not permitted to perform day_plan.view`);
@@ -220,7 +217,6 @@ export async function registerDayPlanRoutes(
   );
 
   // POST /v1/day-plans/preview — AM/OP what-if on the route weights (10/min, L-F04-14).
-  // Static path, registered before `/:inspectorId/:date*` so the radix router prefers it.
   // RBAC is enforced in the use case (`assertRoles(['AM','OP'])`, action `day_plan.preview_weights`).
   app.post(
     '/v1/day-plans/preview',
@@ -239,47 +235,6 @@ export async function registerDayPlanRoutes(
         inspectorId: body.inspectorId,
         date: body.date,
         weights: body.weights,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // POST /v1/day-plans/:inspectorId/:date/recalculate — AM/OP recalc (ROUTE_CHANGED on change, 30/min).
-  app.post(
-    '/v1/day-plans/:inspectorId/:date/recalculate',
-    {
-      preHandler: authenticate,
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
-      schema: { params: operatorParams, response: { 200: successResponseSchema(dayPlanResponseSchema) } },
-    },
-    async (request, reply) => {
-      const { inspectorId, date } = operatorParams.parse(request.params);
-      const result = await container.recalculateDayPlanUseCase.execute({
-        actor: request.authContext!,
-        inspectorId,
-        date,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // GET /v1/day-plans/:inspectorId/:date — AM/OP read, never calls Mapbox (120/min).
-  app.get(
-    '/v1/day-plans/:inspectorId/:date',
-    {
-      preHandler: authenticate,
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
-      schema: {
-        params: operatorParams,
-        response: { 200: successResponseSchema(dayPlanResponseSchema) },
-      },
-    },
-    async (request, reply) => {
-      const { inspectorId, date } = operatorParams.parse(request.params);
-      const result = await container.getDayPlanForOperatorUseCase.execute({
-        actor: request.authContext!,
-        inspectorId,
-        date,
       });
       return reply.status(200).send(success(result));
     },
@@ -306,30 +261,7 @@ export async function registerDayPlanRoutes(
     },
   );
 
-  // GET /v1/day-plans/:inspectorId/:date/sheet — AM/OP download any inspector's sheet (20/min, no date limit).
-  app.get(
-    '/v1/day-plans/:inspectorId/:date/sheet',
-    {
-      preHandler: authenticate,
-      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
-      schema: { params: operatorParams, querystring: sheetQuery },
-    },
-    async (request, reply) => {
-      requireOperator(request.authContext!.role);
-      const { inspectorId, date } = operatorParams.parse(request.params);
-      const { format } = sheetQuery.parse(request.query);
-      const result = await container.getDayPlanSheetUseCase.execute({
-        actor: request.authContext!,
-        inspectorId,
-        date,
-        format,
-      });
-      return sendSheet(reply, result);
-    },
-  );
-
   // GET /v1/day-plans/eta-accuracy — AM/OP read the "Route ETA accuracy" metric (60/min).
-  // Static path; Fastify's radix router prefers it over `/:inspectorId/:date` (test 24).
   app.get(
     '/v1/day-plans/eta-accuracy',
     {

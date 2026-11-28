@@ -19,6 +19,7 @@ import { PropertyScopeService } from '../../../src/modules/property-file/applica
 import { CreatePropertyIssueUseCase } from '../../../src/modules/property-file/application/use-cases/create-property-issue.use-case';
 import { MarkPropertyIssueAsSeenUseCase } from '../../../src/modules/property-file/application/use-cases/mark-property-issue-seen.use-case';
 import { ListPropertyIssuesUseCase } from '../../../src/modules/property-file/application/use-cases/list-property-issues.use-case';
+import { ListPropertyFilesUseCase } from '../../../src/modules/property-file/application/use-cases/list-property-files.use-case';
 import { CountUnseenPropertyIssuesUseCase } from '../../../src/modules/property-file/application/use-cases/count-unseen-property-issues.use-case';
 import { PropertyFileRetentionWorker } from '../../../src/modules/property-file/infrastructure/workers/property-file-retention.worker';
 import { PrismaIdempotencyService } from '../../../src/modules/inspector-execution/infrastructure/prisma-idempotency.service';
@@ -34,6 +35,7 @@ let issueRepo: PrismaPropertyIssueRepository;
 let createIssue: CreatePropertyIssueUseCase;
 let markSeen: MarkPropertyIssueAsSeenUseCase;
 let listIssues: ListPropertyIssuesUseCase;
+let listFiles: ListPropertyFilesUseCase;
 let unseenCount: CountUnseenPropertyIssuesUseCase;
 
 const suffix = () => Math.random().toString(36).slice(2, 10);
@@ -72,6 +74,19 @@ async function insertConfirmedIssuePhoto(tenantId: string, propertyId: string): 
   return id;
 }
 
+async function insertReadyDocument(tenantId: string, propertyId: string): Promise<string> {
+  const id = randomUUID();
+  await prisma.propertyFile.create({
+    data: {
+      id, tenant_id: tenantId, property_id: propertyId, type: 'DOCUMENT',
+      version_group_id: randomUUID(), version: 1, file_name: 'd.pdf', mime: 'application/pdf',
+      size_bytes: 100n, storage_key: `files/${tenantId}/${propertyId}/${id}.pdf`,
+      status: 'READY', confirmed_at: new Date('2026-11-07T00:00:00Z'),
+    },
+  });
+  return id;
+}
+
 beforeAll(async () => {
   harness = await setupDbHarness();
   prisma = harness.prisma;
@@ -84,6 +99,7 @@ beforeAll(async () => {
   createIssue = new CreatePropertyIssueUseCase(prisma, issueRepo, fileRepo, visibility as never, settings as never, idem, audit, auth, clock);
   markSeen = new MarkPropertyIssueAsSeenUseCase(issueRepo, scope, audit, auth, clock);
   listIssues = new ListPropertyIssuesUseCase(issueRepo, fileRepo, scope);
+  listFiles = new ListPropertyFilesUseCase(fileRepo, scope);
   unseenCount = new CountUnseenPropertyIssuesUseCase(issueRepo, auth);
 }, 120_000);
 
@@ -172,13 +188,36 @@ describe('Cross-tenant isolation (C.A2) & indicators', () => {
     expect(am.propertiesWithUnseenIssues).toBeGreaterThanOrEqual(cl.propertiesWithUnseenIssues);
   });
 
-  it('list is tenant-confined: a CL of B sees no issues of A', async () => {
+  it('issue list: a CL of B 404s a foreign property (C.A2), AM/OP read it', async () => {
     const a = await createTenantWithProperty('LSTA');
     await createIssue.execute({ actor: actor('OP', null), input: { propertyId: a.propertyId, reason: 'mine' }, idempotencyKey: `k-${suffix()}` });
-    const asB = await listIssues.execute({ actor: actor('CL_ADMIN', randomUUID()), query: { propertyId: a.propertyId } });
-    expect(asB.issues).toHaveLength(0);
+    // A CL of another agency now gets 404, not a silent empty list.
+    await expect(
+      listIssues.execute({ actor: actor('CL_ADMIN', randomUUID()), query: { propertyId: a.propertyId } }),
+    ).rejects.toMatchObject({ statusCode: 404 });
     const asOp = await listIssues.execute({ actor: actor('OP', null), query: { propertyId: a.propertyId } });
     expect(asOp.issues.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('file list: a CL of B 404s a foreign property (C.A2); AM/OP read it; the owner reads it', async () => {
+    const a = await createTenantWithProperty('FLSTA');
+    await insertReadyDocument(a.tenantId, a.propertyId);
+    // CL of another agency → 404 (matches the detail route), never an empty 200.
+    await expect(
+      listFiles.execute({ actor: actor('CL_ADMIN', randomUUID()), query: { propertyId: a.propertyId } }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    // A missing property also 404s for a CL actor.
+    await expect(
+      listFiles.execute({ actor: actor('CL_ADMIN', a.tenantId), query: { propertyId: randomUUID() } }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    // The owning agency reads its property's files.
+    const asOwner = await listFiles.execute({ actor: actor('CL_ADMIN', a.tenantId), query: { propertyId: a.propertyId } });
+    expect(asOwner.files.length).toBeGreaterThanOrEqual(1);
+    // AM/OP read cross-tenant.
+    const asOp = await listFiles.execute({ actor: actor('OP', null), query: { propertyId: a.propertyId } });
+    expect(asOp.files.length).toBeGreaterThanOrEqual(1);
+    const asAm = await listFiles.execute({ actor: actor('AM', null), query: { propertyId: a.propertyId } });
+    expect(asAm.files.length).toBeGreaterThanOrEqual(1);
   });
 });
 

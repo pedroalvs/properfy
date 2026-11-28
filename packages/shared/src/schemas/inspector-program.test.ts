@@ -415,7 +415,7 @@ describe('inspectorProgramResponseSchema (GET /v1/inspector/program)', () => {
       },
     ],
     standing: {
-      index: { score: 88.3, status: 'SCORED' as const, snapshotDate: '2026-11-08' },
+      index: { score: 88.3, status: 'SCORED' as const, snapshotDate: '2026-11-08', minimumVolume: 10 },
       level: 'GOLD' as const,
       streak: { cycle: 'WEEKLY' as const, count: 3, atRisk: false },
     },
@@ -463,10 +463,26 @@ describe('inspectorProgramResponseSchema (GET /v1/inspector/program)', () => {
   it('accepts a not-ranked caller', () => {
     const result = inspectorProgramResponseSchema.safeParse({
       ...validResponse,
-      standing: { ...validResponse.standing, level: null, index: { score: null, status: 'NOT_COMPUTED', snapshotDate: null } },
+      standing: { ...validResponse.standing, level: null, index: { score: null, status: 'NOT_COMPUTED', snapshotDate: null, minimumVolume: 10 } },
       ranking: { myPosition: null, myScore: null, totalRanked: 37, notRankedReason: 'NOT_ENOUGH_DATA', cohortTooSmall: false, entries: validResponse.ranking.entries },
     });
     expect(result.success).toBe(true);
+  });
+
+  it('requires standing.index.minimumVolume (>= 1)', () => {
+    const { minimumVolume: _omit, ...indexWithout } = validResponse.standing.index;
+    expect(
+      inspectorProgramResponseSchema.safeParse({
+        ...validResponse,
+        standing: { ...validResponse.standing, index: indexWithout },
+      }).success,
+    ).toBe(false);
+    expect(
+      inspectorProgramResponseSchema.safeParse({
+        ...validResponse,
+        standing: { ...validResponse.standing, index: { ...validResponse.standing.index, minimumVolume: 0 } },
+      }).success,
+    ).toBe(false);
   });
 
   it('strips an undeclared voidReason from an award (never exposed, L-F08-05)', () => {

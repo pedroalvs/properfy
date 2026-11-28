@@ -255,6 +255,8 @@ describe('SendGroupPortalLinksUseCase', () => {
       'DATE_CHANGED',
       tx,
       expect.any(Function),
+      // O-11: audit context (operator + group cause) for the appointment-level reset audit.
+      { actorId: expect.any(String), cause: 'GROUP_PORTAL_LINK_RESEND' },
     );
     expect(events).toEqual([
       'transaction:start',
@@ -293,17 +295,21 @@ describe('SendGroupPortalLinksUseCase', () => {
     ]);
   });
 
-  it('OP drops a foreign-tenant row (no rotate, no dispatch)', async () => {
+  it('OP with no agency (tenantId null) sends to every agency in a cross-tenant group (O-19 D2)', async () => {
+    // OP is cross-tenant and always has tenantId null, so the old
+    // `r.tenantId === actor.tenantId` filter dropped every row and sent nothing.
+    // The OP must fan the links out to all agencies in the group.
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
-      row({ id: 'mine', tenantId: 'tenant-1' }),
-      row({ id: 'theirs', tenantId: 'tenant-2' }),
+      row({ id: 'agency-x', tenantId: 'tenant-1' }),
+      row({ id: 'agency-y', tenantId: 'tenant-2' }),
     ]);
 
-    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }) });
+    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor({ role: 'OP', tenantId: null }) });
 
-    expect(out.results.map((r) => r.appointmentId)).toEqual(['mine']);
-    expect(m.generatePortalToken.execute).toHaveBeenCalledTimes(1);
-    expect(m.generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'mine', actor: expect.any(Object) });
+    expect(out.results.map((r) => r.appointmentId)).toEqual(['agency-x', 'agency-y']);
+    expect(m.generatePortalToken.execute).toHaveBeenCalledTimes(2);
+    expect(m.generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'agency-x', actor: expect.any(Object) });
+    expect(m.generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'agency-y', actor: expect.any(Object) });
   });
 
   it('anchors the per-day idempotency key to the Sydney civil date', async () => {

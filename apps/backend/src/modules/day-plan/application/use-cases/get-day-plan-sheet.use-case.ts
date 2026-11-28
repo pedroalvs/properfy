@@ -10,9 +10,8 @@ import {
 } from '../../infrastructure/day-plan-sheet.renderer';
 import { dayPlanSheetTooOld } from '../../domain/day-plan.errors';
 import type { GetMyDayPlanUseCase } from './get-my-day-plan.use-case';
-import type { GetDayPlanForOperatorUseCase } from './get-day-plan-for-operator.use-case';
 
-/** INSP may export the last 30 days of plans; AM/OP have no limit (L-F04-10). */
+/** INSP may export the last 30 days of plans (L-F04-10). */
 const INSPECTOR_SHEET_MAX_AGE_DAYS = 30;
 
 const CONTENT_TYPE: Record<DayPlanSheetFormat, string> = {
@@ -24,8 +23,6 @@ export interface GetDayPlanSheetInput {
   actor: AuthContext;
   date: string;
   format: DayPlanSheetFormat;
-  /** Required for AM/OP; ignored for INSP (their own plan). */
-  inspectorId?: string;
   now?: Date;
 }
 
@@ -36,15 +33,15 @@ export interface GetDayPlanSheetResult {
 }
 
 /**
- * Route sheet download (contract 01.A6, L-F04-10). Recomputes the plan through the
- * same read path as the GET (so INSP gets the L-F04-01 no-routing STALE clear),
- * enforces the 30-day INSP limit, renders PDF/XLSX, and writes a `day_plan.exported`
- * audit carrying no personal data (format/date/stop-count/actorRole only).
+ * Inspector route sheet download (contract 01.A6, L-F04-10). Recomputes the plan
+ * through the same read path as the inspector GET (so INSP gets the L-F04-01
+ * no-routing STALE clear), enforces the 30-day INSP limit, renders PDF/XLSX, and
+ * writes a `day_plan.exported` audit carrying no personal data
+ * (format/date/stop-count/actorRole only).
  */
 export class GetDayPlanSheetUseCase {
   constructor(
     private readonly getMyDayPlan: GetMyDayPlanUseCase,
-    private readonly getForOperator: GetDayPlanForOperatorUseCase,
     private readonly renderer: DayPlanSheetRenderer,
     private readonly audit: AuditService,
     private readonly clock: Clock = new SystemClock(),
@@ -54,10 +51,7 @@ export class GetDayPlanSheetUseCase {
     const { actor, date, format } = input;
     const now = input.now ?? this.clock.now();
 
-    const plan =
-      actor.role === 'INSP'
-        ? await this.readOwnPlan(actor, date, now)
-        : await this.getForOperator.execute({ actor, inspectorId: input.inspectorId ?? '', date, now });
+    const plan = await this.readOwnPlan(actor, date, now);
 
     const buffer = await this.renderer.render(plan, format);
 

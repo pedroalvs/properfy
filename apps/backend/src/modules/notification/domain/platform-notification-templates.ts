@@ -42,7 +42,7 @@ export interface PlatformTemplateSeed {
  * `getProtectedClass`, so a row's class ended up depending on which write path
  * touched it last: templates edited through the UI were correct, templates only
  * ever seeded were not. That is how the four appointment-action SMS codes came to
- * be consent-suppressible while their email twins were not.
+ * be OPERATIONAL (counted against the daily cap) while their email twins were not.
  *
  * `getDefaultClass` already resolves PROTECTED → DEFAULT → OPERATIONAL, so the
  * catalogue stays the single source of truth and the seeder stops having an
@@ -484,9 +484,9 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     bodyHtml: REJECTED_AGENCY_HTML,
     // Explicit for the same reason as INSPECTION_CANCELLED_AGENCY above: the
     // seeder leaves the column on the OPERATIONAL default when the entry omits
-    // it, and an OPERATIONAL row is consent-checked per recipient, which would
-    // let a branch contact's opt-out suppress the notice telling them to
-    // reschedule. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
+    // it, and an OPERATIONAL row counts against the agency's daily sending cap,
+    // which could drop the notice telling them to reschedule under load.
+    // Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
     notificationClass: 'TRANSACTIONAL',
   },
   {
@@ -521,7 +521,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   },
   {
     // Internal ops alert (inspection-execution.notify-not-started cron). TRANSACTIONAL so it
-    // can never be consent-blocked, and no unsubscribe footer — the recipient is the ops team.
+    // is always sent and exempt from the daily cap, and no unsubscribe footer — the recipient is the ops team.
     code: 'INSPECTION_STUCK_ALERT',
     channel: 'EMAIL',
     subject: 'Inspection stuck in progress for over {{hoursStuck}} hours',
@@ -531,8 +531,8 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   },
   {
     // Internal ops alert fanned out to every active OP/AM when an inspector taps "Can't do
-    // this job" (notify-inspector-unable.service). TRANSACTIONAL so it can never be
-    // consent-blocked; recipient is the ops team. The note is the inspector's free text and
+    // this job" (notify-inspector-unable.service). TRANSACTIONAL so it is always sent and
+    // exempt from the daily cap; recipient is the ops team. The note is the inspector's free text and
     // may be empty. Never carries the inspector's raw coordinates (F03 privacy).
     code: 'INSPECTOR_UNABLE_ALERT',
     channel: 'EMAIL',
@@ -542,8 +542,8 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     notificationClass: 'TRANSACTIONAL',
   },
   {
-    // Security email for the self-service forgot-password flow. TRANSACTIONAL so it can
-    // never be consent-blocked. The resetLink already points at the right app for the
+    // Security email for the self-service forgot-password flow. TRANSACTIONAL so it is
+    // always sent and exempt from the daily cap. The resetLink already points at the right app for the
     // recipient (web app, or PWA for inspectors).
     code: 'PASSWORD_RESET',
     channel: 'EMAIL',
@@ -552,8 +552,8 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     bodyHtml: PASSWORD_RESET_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
-  // Inspector-directed operational mail. TRANSACTIONAL so it can never be
-  // consent-blocked, and deliberately absent from MANDATORY_TEMPLATE_CODES:
+  // Inspector-directed operational mail. TRANSACTIONAL so it is always sent and
+  // exempt from the daily cap, and deliberately absent from MANDATORY_TEMPLATE_CODES:
   // the recipient is a contractor, not an agency's rental tenant, so these must
   // not appear in the per-agency template customization UI.
   {
@@ -660,7 +660,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     notificationClass: 'TRANSACTIONAL',
   },
   // ── Tenant arrival-time notices (F06) ──────────────────────────────────────
-  // One code, two channel rows each; class derived to OPERATIONAL (consent-checked);
+  // One code, two channel rows each; class derived to OPERATIONAL (counts against the daily cap);
   // SMS bodies are GSM-7 only (no apostrophe / en dash).
   {
     code: 'TENANT_ETA_MORNING',

@@ -8,6 +8,12 @@ export interface AddressLookupSuggestion {
   latitude: number;
   longitude: number;
   provider: 'MAPBOX';
+  /**
+   * House/unit number stored as a separate field by API/import (branch addresses).
+   * Mapbox lookups fold the number into `street`, so this is usually absent; it is
+   * preserved on edit so a round-trip doesn't wipe an imported `number` (O-2).
+   */
+  number?: string;
 }
 
 function readString(record: Record<string, unknown>, key: string): string | null {
@@ -40,7 +46,14 @@ export function formatAddressLabel(address: unknown): string | null {
   const formattedAddress = readString(record, 'formattedAddress');
   if (formattedAddress) return formattedAddress;
 
-  const street = readString(record, 'street');
+  // The inspector base address keeps the house number in a separate `number`
+  // field (no `formattedAddress`); prepend it so the label reads "1 Martin
+  // Place". Addresses captured via the Mapbox lookup carry `formattedAddress`
+  // (returned above) with the number already inside the street, so they are
+  // untouched.
+  const streetName = readString(record, 'street');
+  const streetNumber = readString(record, 'number');
+  const street = streetName ? [streetNumber, streetName].filter(Boolean).join(' ') : null;
   const suburb = readString(record, 'suburb') ?? readString(record, 'city');
   const state = readString(record, 'state');
   const postcode = readString(record, 'postcode');
@@ -61,8 +74,16 @@ export function toAddressSuggestion(address: unknown): AddressLookupSuggestion |
   const country = readString(record, 'country');
   const latitude = typeof record['latitude'] === 'number' ? record['latitude'] : null;
   const longitude = typeof record['longitude'] === 'number' ? record['longitude'] : null;
+  const number = readString(record, 'number');
 
-  if (!formattedAddress || !street || !state || !country) {
+  // O-9: a stored address only needs a street to be worth pre-filling. Legacy
+  // branch addresses often lack `country` (AU is implied) and have no coordinate;
+  // the old `!state || !country` guard returned null, so the "Edit Branch" drawer
+  // opened with a BLANK Address even though the list showed it — and a user filling
+  // it in silently CHANGED the address. Default the missing country to the AU-only
+  // platform value and keep the other fields as stored (empty when absent) so the
+  // drawer pre-fills the legacy address instead of blanking it.
+  if (!formattedAddress || !street) {
     return null;
   }
 
@@ -71,10 +92,11 @@ export function toAddressSuggestion(address: unknown): AddressLookupSuggestion |
     street,
     suburb: suburb ?? '',
     postcode: postcode ?? '',
-    state,
-    country,
+    state: state ?? '',
+    country: country ?? 'AU',
     latitude: latitude ?? 0,
     longitude: longitude ?? 0,
     provider: record['provider'] === 'MAPBOX' ? 'MAPBOX' : 'MAPBOX',
+    ...(number ? { number } : {}),
   };
 }

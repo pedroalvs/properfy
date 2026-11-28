@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { PropertyFileType, FILE_STORAGE_UNAVAILABLE_MESSAGE } from '@properfy/shared';
+import { FILE_TYPE_REJECTED_MESSAGE, FILE_TOO_LARGE_MESSAGE } from '../lib/file-errors';
 
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -102,6 +103,42 @@ describe('usePropertyFileUpload', () => {
     expect(ok).toBe(false);
     expect(result.current.uploadError).toBe('Unsupported file type');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('explains a storage 415 (bad type) on the signed-URL PUT', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { data: { fileId: 'f1', uploadUrl: 'https://up/url', storageKey: 'k', expiresAt: 'e' } },
+      error: undefined,
+      response: { status: 201 },
+    });
+    fetchSpy.mockResolvedValue({ ok: false, status: 415 } as Response);
+
+    const { result } = renderHook(() => usePropertyFileUpload(), { wrapper: createQueryWrapper() });
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.upload({ file: makeFile(), type: PropertyFileType.DOCUMENT, propertyId: 'p1' });
+    });
+    expect(ok).toBe(false);
+    expect(result.current.uploadError).toBe(FILE_TYPE_REJECTED_MESSAGE);
+    expect(showError).toHaveBeenCalledWith(FILE_TYPE_REJECTED_MESSAGE);
+    // confirm must not run after a rejected PUT
+    expect(mockPost).toHaveBeenCalledTimes(1);
+  });
+
+  it('explains a storage 413 (too large) on the signed-URL PUT', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { data: { fileId: 'f1', uploadUrl: 'https://up/url', storageKey: 'k', expiresAt: 'e' } },
+      error: undefined,
+      response: { status: 201 },
+    });
+    fetchSpy.mockResolvedValue({ ok: false, status: 413 } as Response);
+
+    const { result } = renderHook(() => usePropertyFileUpload(), { wrapper: createQueryWrapper() });
+    await act(async () => {
+      await result.current.upload({ file: makeFile(), type: PropertyFileType.DOCUMENT, propertyId: 'p1' });
+    });
+    expect(result.current.uploadError).toBe(FILE_TOO_LARGE_MESSAGE);
+    expect(showError).toHaveBeenCalledWith(FILE_TOO_LARGE_MESSAGE);
   });
 
   it('maps a 503 confirm to the shared storage message', async () => {

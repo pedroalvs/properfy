@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useUpdateInspectorSelf } from '../useUpdateInspectorSelf';
+import { useUpdateInspectorSelf, UpdateInspectorSelfError } from '../useUpdateInspectorSelf';
 
 const mockApiPatch = vi.fn();
 
@@ -100,6 +100,33 @@ describe('useUpdateInspectorSelf', () => {
         await result.current.mutateAsync({ address: BASE });
       }),
     ).rejects.toThrow('Only Australian addresses are supported');
+  });
+
+  it('surfaces the ADDRESS_NOT_VERIFIED reason on a 422 (V-3)', async () => {
+    mockApiPatch.mockResolvedValue({
+      data: undefined,
+      error: {
+        error: {
+          code: 'ADDRESS_NOT_VERIFIED',
+          message: 'The address could not be verified.',
+          details: [{ field: 'address', reason: 'COARSE_RESULT' }],
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateInspectorSelf(), { wrapper: makeWrapper() });
+
+    let caught: unknown;
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ address: BASE });
+      } catch (err) {
+        caught = err;
+      }
+    });
+
+    expect(caught).toBeInstanceOf(UpdateInspectorSelfError);
+    expect((caught as UpdateInspectorSelfError).addressNotVerifiedReason).toBe('COARSE_RESULT');
   });
 
   it('invalidates the inspector query on success', async () => {

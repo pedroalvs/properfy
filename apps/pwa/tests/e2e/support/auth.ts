@@ -71,7 +71,7 @@ export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status
       summary: { openCashTotal: 0, currency: 'AUD' },
       activeGoals: [],
       standing: {
-        index: { score: null, status: 'NOT_COMPUTED', snapshotDate: null },
+        index: { score: null, status: 'NOT_COMPUTED', snapshotDate: null, minimumVolume: 10 },
         level: null,
         streak: { cycle: null, count: 0, atRisk: false },
       },

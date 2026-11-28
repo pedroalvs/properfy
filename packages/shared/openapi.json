@@ -911,17 +911,6 @@
                         "type": "boolean",
                         "default": false
                       },
-                      "priorityOfferHours": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 168,
-                        "default": 24
-                      },
-                      "inspectorOfferRadiusKm": {
-                        "type": "number",
-                        "minimum": 0,
-                        "default": 2
-                      },
                       "clUserPermissions": {
                         "type": "array",
                         "items": {
@@ -1573,17 +1562,6 @@
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
-                      },
-                      "priorityOfferHours": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 168,
-                        "default": 24
-                      },
-                      "inspectorOfferRadiusKm": {
-                        "type": "number",
-                        "minimum": 0,
-                        "default": 2
                       },
                       "clUserPermissions": {
                         "type": "array",
@@ -4940,6 +4918,18 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 9999999999.99
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90,
+                    "nullable": true
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180,
+                    "nullable": true
                   },
                   "notes": {
                     "type": "string",
@@ -20779,6 +20769,240 @@
         }
       }
     },
+    "/v1/service-groups/find-move-targets-for-appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "groupNumber": {
+                                "type": "number"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              },
+                              "timeWindow": {
+                                "type": "string"
+                              },
+                              "currentSize": {
+                                "type": "integer"
+                              },
+                              "serviceTypeName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "isCurrentDay": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "groupNumber",
+                              "code",
+                              "status",
+                              "scheduledDate",
+                              "timeWindow",
+                              "currentSize",
+                              "serviceTypeName",
+                              "isCurrentDay"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "MIXED_APPOINTMENT_PROPERTIES",
+                            "INVALID_APPOINTMENT_STATUS",
+                            "NOT_GROUPED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "groups"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/move-appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "NOT_GROUPED",
+                                  "SOURCE_GROUP_NOT_ACTIVE",
+                                  "ALREADY_IN_TARGET",
+                                  "INVALID_STATUS",
+                                  "INVALID_SERVICE_TYPE",
+                                  "GROUP_IN_TERMINAL_STATE",
+                                  "GROUP_CAPACITY_EXCEEDED",
+                                  "INSPECTOR_INELIGIBLE",
+                                  "TARGET_DATE_INELIGIBLE",
+                                  "NOT_FOUND",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "movedCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "results",
+                        "movedCount"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/service-groups/{groupId}/portal-link-plan": {
       "get": {
         "parameters": [
@@ -26520,6 +26744,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -26583,6 +26811,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -27257,6 +27486,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -27320,6 +27553,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -28269,6 +28503,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -28332,6 +28570,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -28974,6 +29213,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -29037,6 +29280,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -29681,6 +29925,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -29744,6 +29992,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -30262,1438 +30511,6 @@
         }
       }
     },
-    "/v1/day-plans/{inspectorId}/{date}/recalculate": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "inspectorId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "path",
-            "name": "date",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorName": {
-                          "type": "string"
-                        },
-                        "date": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timezone": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "DRAFT",
-                            "PUBLISHED",
-                            "STALE"
-                          ]
-                        },
-                        "version": {
-                          "type": "integer"
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "computedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "lastTrigger": {
-                          "type": "string",
-                          "enum": [
-                            "SCHEDULED_PUBLISH",
-                            "ON_OPEN",
-                            "MANUAL_RECALC",
-                            "REORDER",
-                            "ORIGIN_CHANGE"
-                          ]
-                        },
-                        "approximate": {
-                          "type": "boolean"
-                        },
-                        "approximateReason": {
-                          "type": "string",
-                          "enum": [
-                            "NO_PROVIDER",
-                            "RATE_LIMITED",
-                            "PROVIDER_ERROR",
-                            "DEADLINE",
-                            "TOO_MANY_COORDINATES",
-                            "NO_ROUTE"
-                          ],
-                          "nullable": true
-                        },
-                        "routingProvider": {
-                          "type": "string",
-                          "enum": [
-                            "MAPBOX",
-                            "STUB"
-                          ]
-                        },
-                        "matrixProfile": {
-                          "type": "string",
-                          "enum": [
-                            "driving-traffic",
-                            "driving",
-                            "haversine"
-                          ],
-                          "nullable": true
-                        },
-                        "optimizerMethod": {
-                          "type": "string",
-                          "enum": [
-                            "TRIVIAL",
-                            "EXACT",
-                            "HEURISTIC",
-                            "INSERTION",
-                            "FIXED"
-                          ]
-                        },
-                        "origin": {
-                          "type": "object",
-                          "properties": {
-                            "source": {
-                              "type": "string",
-                              "enum": [
-                                "BASE",
-                                "OVERRIDE",
-                                "NONE",
-                                "LAST_STOP"
-                              ]
-                            },
-                            "label": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "lat": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "lng": {
-                              "type": "number",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "source",
-                            "label",
-                            "lat",
-                            "lng"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "originWarning": {
-                          "type": "string",
-                          "enum": [
-                            "NO_BASE",
-                            "BASE_NOT_LOCATED"
-                          ],
-                          "nullable": true
-                        },
-                        "originOverride": {
-                          "type": "object",
-                          "properties": {
-                            "address": {
-                              "type": "object",
-                              "properties": {
-                                "street": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 200
-                                },
-                                "number": {
-                                  "type": "string",
-                                  "maxLength": 20
-                                },
-                                "complement": {
-                                  "type": "string",
-                                  "maxLength": 200
-                                },
-                                "suburb": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 100
-                                },
-                                "city": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 100
-                                },
-                                "state": {
-                                  "allOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "enum": [
-                                        "NSW",
-                                        "VIC",
-                                        "QLD",
-                                        "WA",
-                                        "SA",
-                                        "TAS",
-                                        "ACT",
-                                        "NT"
-                                      ]
-                                    }
-                                  ]
-                                },
-                                "postcode": {
-                                  "type": "string",
-                                  "pattern": "^\\d{4}$"
-                                },
-                                "country": {
-                                  "type": "string",
-                                  "enum": [
-                                    "AU"
-                                  ],
-                                  "default": "AU"
-                                }
-                              },
-                              "required": [
-                                "street",
-                                "suburb",
-                                "city",
-                                "state",
-                                "postcode"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "setAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "address",
-                            "setAt"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
-                        },
-                        "departureAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "finishEta": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "totals": {
-                          "type": "object",
-                          "properties": {
-                            "driveS": {
-                              "type": "integer"
-                            },
-                            "waitS": {
-                              "type": "integer"
-                            },
-                            "serviceS": {
-                              "type": "integer"
-                            },
-                            "lateS": {
-                              "type": "integer"
-                            },
-                            "distanceM": {
-                              "type": "integer",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "driveS",
-                            "waitS",
-                            "serviceS",
-                            "lateS",
-                            "distanceM"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "feasible": {
-                          "type": "boolean"
-                        },
-                        "violations": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "appointmentId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "lateS": {
-                                "type": "integer"
-                              }
-                            },
-                            "required": [
-                              "appointmentId",
-                              "lateS"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "manualOrder": {
-                          "type": "boolean"
-                        },
-                        "suggestedOrder": {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "format": "uuid"
-                          }
-                        },
-                        "stops": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "appointmentId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "appointmentCode": {
-                                "type": "string"
-                              },
-                              "agencyName": {
-                                "type": "string"
-                              },
-                              "appointmentStatus": {
-                                "type": "string",
-                                "enum": [
-                                  "SCHEDULED",
-                                  "DONE"
-                                ]
-                              },
-                              "executionStatus": {
-                                "type": "string",
-                                "enum": [
-                                  "NOT_STARTED",
-                                  "IN_PROGRESS",
-                                  "FINISHED"
-                                ]
-                              },
-                              "eta": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "serviceStartAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "serviceEndAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "travelS": {
-                                "type": "integer"
-                              },
-                              "distanceM": {
-                                "type": "integer",
-                                "nullable": true
-                              },
-                              "waitS": {
-                                "type": "integer"
-                              },
-                              "lateS": {
-                                "type": "integer"
-                              },
-                              "windowStart": {
-                                "type": "string"
-                              },
-                              "windowEnd": {
-                                "type": "string"
-                              },
-                              "windowStartAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
-                              },
-                              "windowEndAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
-                              },
-                              "timezone": {
-                                "type": "string"
-                              },
-                              "durationMinutes": {
-                                "type": "integer"
-                              },
-                              "manual": {
-                                "type": "boolean"
-                              },
-                              "executed": {
-                                "type": "boolean"
-                              },
-                              "approximate": {
-                                "type": "boolean"
-                              },
-                              "missingCoordinates": {
-                                "type": "boolean"
-                              },
-                              "lat": {
-                                "type": "number",
-                                "nullable": true
-                              },
-                              "lng": {
-                                "type": "number",
-                                "nullable": true
-                              },
-                              "propertyAddress": {
-                                "type": "string"
-                              },
-                              "suburb": {
-                                "type": "string"
-                              },
-                              "serviceTypeName": {
-                                "type": "string"
-                              },
-                              "keyRequired": {
-                                "type": "boolean"
-                              },
-                              "meetingLocation": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "rentalTenantConfirmationStatus": {
-                                "type": "string"
-                              },
-                              "primaryContact": {
-                                "type": "object",
-                                "properties": {
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "phone": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "role": {
-                                    "type": "string",
-                                    "enum": [
-                                      "RENTAL_TENANT",
-                                      "RENTAL_TENANT_REPRESENTATIVE",
-                                      "HOUSEKEEPER",
-                                      "PROPERTY_MANAGER",
-                                      "BROKER",
-                                      "OTHER"
-                                    ]
-                                  }
-                                },
-                                "required": [
-                                  "name",
-                                  "phone",
-                                  "role"
-                                ],
-                                "additionalProperties": false,
-                                "nullable": true
-                              }
-                            },
-                            "required": [
-                              "appointmentId",
-                              "sequence",
-                              "appointmentCode",
-                              "agencyName",
-                              "appointmentStatus",
-                              "executionStatus",
-                              "eta",
-                              "serviceStartAt",
-                              "serviceEndAt",
-                              "travelS",
-                              "distanceM",
-                              "waitS",
-                              "lateS",
-                              "windowStart",
-                              "windowEnd",
-                              "windowStartAt",
-                              "windowEndAt",
-                              "timezone",
-                              "durationMinutes",
-                              "manual",
-                              "executed",
-                              "approximate",
-                              "missingCoordinates",
-                              "lat",
-                              "lng",
-                              "propertyAddress",
-                              "suburb",
-                              "serviceTypeName",
-                              "keyRequired",
-                              "meetingLocation",
-                              "rentalTenantConfirmationStatus",
-                              "primaryContact"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "geometry": {
-                          "type": "object",
-                          "properties": {
-                            "type": {
-                              "type": "string",
-                              "enum": [
-                                "FeatureCollection"
-                              ]
-                            },
-                            "features": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "type": {
-                                    "type": "string",
-                                    "enum": [
-                                      "Feature"
-                                    ]
-                                  },
-                                  "geometry": {
-                                    "type": "object",
-                                    "properties": {
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "LineString"
-                                        ]
-                                      },
-                                      "coordinates": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "number"
-                                            },
-                                            {
-                                              "type": "number"
-                                            }
-                                          ]
-                                        }
-                                      }
-                                    },
-                                    "required": [
-                                      "type",
-                                      "coordinates"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  "properties": {
-                                    "type": "object",
-                                    "properties": {
-                                      "fromSequence": {
-                                        "type": "integer"
-                                      },
-                                      "toSequence": {
-                                        "type": "integer"
-                                      },
-                                      "approximate": {
-                                        "type": "boolean"
-                                      }
-                                    },
-                                    "required": [
-                                      "fromSequence",
-                                      "toSequence",
-                                      "approximate"
-                                    ],
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "required": [
-                                  "type",
-                                  "geometry",
-                                  "properties"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "features"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "inspectorId",
-                        "inspectorName",
-                        "date",
-                        "timezone",
-                        "status",
-                        "version",
-                        "publishedAt",
-                        "computedAt",
-                        "lastTrigger",
-                        "approximate",
-                        "approximateReason",
-                        "routingProvider",
-                        "matrixProfile",
-                        "optimizerMethod",
-                        "origin",
-                        "originWarning",
-                        "originOverride",
-                        "departureAt",
-                        "finishEta",
-                        "totals",
-                        "feasible",
-                        "violations",
-                        "manualOrder",
-                        "suggestedOrder",
-                        "stops",
-                        "geometry"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/day-plans/{inspectorId}/{date}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "inspectorId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "path",
-            "name": "date",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorName": {
-                          "type": "string"
-                        },
-                        "date": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timezone": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "DRAFT",
-                            "PUBLISHED",
-                            "STALE"
-                          ]
-                        },
-                        "version": {
-                          "type": "integer"
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "computedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "lastTrigger": {
-                          "type": "string",
-                          "enum": [
-                            "SCHEDULED_PUBLISH",
-                            "ON_OPEN",
-                            "MANUAL_RECALC",
-                            "REORDER",
-                            "ORIGIN_CHANGE"
-                          ]
-                        },
-                        "approximate": {
-                          "type": "boolean"
-                        },
-                        "approximateReason": {
-                          "type": "string",
-                          "enum": [
-                            "NO_PROVIDER",
-                            "RATE_LIMITED",
-                            "PROVIDER_ERROR",
-                            "DEADLINE",
-                            "TOO_MANY_COORDINATES",
-                            "NO_ROUTE"
-                          ],
-                          "nullable": true
-                        },
-                        "routingProvider": {
-                          "type": "string",
-                          "enum": [
-                            "MAPBOX",
-                            "STUB"
-                          ]
-                        },
-                        "matrixProfile": {
-                          "type": "string",
-                          "enum": [
-                            "driving-traffic",
-                            "driving",
-                            "haversine"
-                          ],
-                          "nullable": true
-                        },
-                        "optimizerMethod": {
-                          "type": "string",
-                          "enum": [
-                            "TRIVIAL",
-                            "EXACT",
-                            "HEURISTIC",
-                            "INSERTION",
-                            "FIXED"
-                          ]
-                        },
-                        "origin": {
-                          "type": "object",
-                          "properties": {
-                            "source": {
-                              "type": "string",
-                              "enum": [
-                                "BASE",
-                                "OVERRIDE",
-                                "NONE",
-                                "LAST_STOP"
-                              ]
-                            },
-                            "label": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "lat": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "lng": {
-                              "type": "number",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "source",
-                            "label",
-                            "lat",
-                            "lng"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "originWarning": {
-                          "type": "string",
-                          "enum": [
-                            "NO_BASE",
-                            "BASE_NOT_LOCATED"
-                          ],
-                          "nullable": true
-                        },
-                        "originOverride": {
-                          "type": "object",
-                          "properties": {
-                            "address": {
-                              "type": "object",
-                              "properties": {
-                                "street": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 200
-                                },
-                                "number": {
-                                  "type": "string",
-                                  "maxLength": 20
-                                },
-                                "complement": {
-                                  "type": "string",
-                                  "maxLength": 200
-                                },
-                                "suburb": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 100
-                                },
-                                "city": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 100
-                                },
-                                "state": {
-                                  "allOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "enum": [
-                                        "NSW",
-                                        "VIC",
-                                        "QLD",
-                                        "WA",
-                                        "SA",
-                                        "TAS",
-                                        "ACT",
-                                        "NT"
-                                      ]
-                                    }
-                                  ]
-                                },
-                                "postcode": {
-                                  "type": "string",
-                                  "pattern": "^\\d{4}$"
-                                },
-                                "country": {
-                                  "type": "string",
-                                  "enum": [
-                                    "AU"
-                                  ],
-                                  "default": "AU"
-                                }
-                              },
-                              "required": [
-                                "street",
-                                "suburb",
-                                "city",
-                                "state",
-                                "postcode"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "setAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "address",
-                            "setAt"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
-                        },
-                        "departureAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "finishEta": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "totals": {
-                          "type": "object",
-                          "properties": {
-                            "driveS": {
-                              "type": "integer"
-                            },
-                            "waitS": {
-                              "type": "integer"
-                            },
-                            "serviceS": {
-                              "type": "integer"
-                            },
-                            "lateS": {
-                              "type": "integer"
-                            },
-                            "distanceM": {
-                              "type": "integer",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "driveS",
-                            "waitS",
-                            "serviceS",
-                            "lateS",
-                            "distanceM"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "feasible": {
-                          "type": "boolean"
-                        },
-                        "violations": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "appointmentId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "lateS": {
-                                "type": "integer"
-                              }
-                            },
-                            "required": [
-                              "appointmentId",
-                              "lateS"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "manualOrder": {
-                          "type": "boolean"
-                        },
-                        "suggestedOrder": {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "format": "uuid"
-                          }
-                        },
-                        "stops": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "appointmentId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "appointmentCode": {
-                                "type": "string"
-                              },
-                              "agencyName": {
-                                "type": "string"
-                              },
-                              "appointmentStatus": {
-                                "type": "string",
-                                "enum": [
-                                  "SCHEDULED",
-                                  "DONE"
-                                ]
-                              },
-                              "executionStatus": {
-                                "type": "string",
-                                "enum": [
-                                  "NOT_STARTED",
-                                  "IN_PROGRESS",
-                                  "FINISHED"
-                                ]
-                              },
-                              "eta": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "serviceStartAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "serviceEndAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "travelS": {
-                                "type": "integer"
-                              },
-                              "distanceM": {
-                                "type": "integer",
-                                "nullable": true
-                              },
-                              "waitS": {
-                                "type": "integer"
-                              },
-                              "lateS": {
-                                "type": "integer"
-                              },
-                              "windowStart": {
-                                "type": "string"
-                              },
-                              "windowEnd": {
-                                "type": "string"
-                              },
-                              "windowStartAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
-                              },
-                              "windowEndAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
-                              },
-                              "timezone": {
-                                "type": "string"
-                              },
-                              "durationMinutes": {
-                                "type": "integer"
-                              },
-                              "manual": {
-                                "type": "boolean"
-                              },
-                              "executed": {
-                                "type": "boolean"
-                              },
-                              "approximate": {
-                                "type": "boolean"
-                              },
-                              "missingCoordinates": {
-                                "type": "boolean"
-                              },
-                              "lat": {
-                                "type": "number",
-                                "nullable": true
-                              },
-                              "lng": {
-                                "type": "number",
-                                "nullable": true
-                              },
-                              "propertyAddress": {
-                                "type": "string"
-                              },
-                              "suburb": {
-                                "type": "string"
-                              },
-                              "serviceTypeName": {
-                                "type": "string"
-                              },
-                              "keyRequired": {
-                                "type": "boolean"
-                              },
-                              "meetingLocation": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "rentalTenantConfirmationStatus": {
-                                "type": "string"
-                              },
-                              "primaryContact": {
-                                "type": "object",
-                                "properties": {
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "phone": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "role": {
-                                    "type": "string",
-                                    "enum": [
-                                      "RENTAL_TENANT",
-                                      "RENTAL_TENANT_REPRESENTATIVE",
-                                      "HOUSEKEEPER",
-                                      "PROPERTY_MANAGER",
-                                      "BROKER",
-                                      "OTHER"
-                                    ]
-                                  }
-                                },
-                                "required": [
-                                  "name",
-                                  "phone",
-                                  "role"
-                                ],
-                                "additionalProperties": false,
-                                "nullable": true
-                              }
-                            },
-                            "required": [
-                              "appointmentId",
-                              "sequence",
-                              "appointmentCode",
-                              "agencyName",
-                              "appointmentStatus",
-                              "executionStatus",
-                              "eta",
-                              "serviceStartAt",
-                              "serviceEndAt",
-                              "travelS",
-                              "distanceM",
-                              "waitS",
-                              "lateS",
-                              "windowStart",
-                              "windowEnd",
-                              "windowStartAt",
-                              "windowEndAt",
-                              "timezone",
-                              "durationMinutes",
-                              "manual",
-                              "executed",
-                              "approximate",
-                              "missingCoordinates",
-                              "lat",
-                              "lng",
-                              "propertyAddress",
-                              "suburb",
-                              "serviceTypeName",
-                              "keyRequired",
-                              "meetingLocation",
-                              "rentalTenantConfirmationStatus",
-                              "primaryContact"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "geometry": {
-                          "type": "object",
-                          "properties": {
-                            "type": {
-                              "type": "string",
-                              "enum": [
-                                "FeatureCollection"
-                              ]
-                            },
-                            "features": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "type": {
-                                    "type": "string",
-                                    "enum": [
-                                      "Feature"
-                                    ]
-                                  },
-                                  "geometry": {
-                                    "type": "object",
-                                    "properties": {
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "LineString"
-                                        ]
-                                      },
-                                      "coordinates": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "number"
-                                            },
-                                            {
-                                              "type": "number"
-                                            }
-                                          ]
-                                        }
-                                      }
-                                    },
-                                    "required": [
-                                      "type",
-                                      "coordinates"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  "properties": {
-                                    "type": "object",
-                                    "properties": {
-                                      "fromSequence": {
-                                        "type": "integer"
-                                      },
-                                      "toSequence": {
-                                        "type": "integer"
-                                      },
-                                      "approximate": {
-                                        "type": "boolean"
-                                      }
-                                    },
-                                    "required": [
-                                      "fromSequence",
-                                      "toSequence",
-                                      "approximate"
-                                    ],
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "required": [
-                                  "type",
-                                  "geometry",
-                                  "properties"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "features"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "inspectorId",
-                        "inspectorName",
-                        "date",
-                        "timezone",
-                        "status",
-                        "version",
-                        "publishedAt",
-                        "computedAt",
-                        "lastTrigger",
-                        "approximate",
-                        "approximateReason",
-                        "routingProvider",
-                        "matrixProfile",
-                        "optimizerMethod",
-                        "origin",
-                        "originWarning",
-                        "originOverride",
-                        "departureAt",
-                        "finishEta",
-                        "totals",
-                        "feasible",
-                        "violations",
-                        "manualOrder",
-                        "suggestedOrder",
-                        "stops",
-                        "geometry"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/inspector/day-plans/{date}/sheet": {
       "get": {
         "parameters": [
@@ -31707,47 +30524,6 @@
             },
             "in": "query",
             "name": "format",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "path",
-            "name": "date",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/day-plans/{inspectorId}/{date}/sheet": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "pdf",
-                "xlsx"
-              ]
-            },
-            "in": "query",
-            "name": "format",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "inspectorId",
             "required": true
           },
           {
@@ -34738,12 +33514,17 @@
                             "snapshotDate": {
                               "type": "string",
                               "nullable": true
+                            },
+                            "minimumVolume": {
+                              "type": "integer",
+                              "minimum": 1
                             }
                           },
                           "required": [
                             "score",
                             "status",
-                            "snapshotDate"
+                            "snapshotDate",
+                            "minimumVolume"
                           ],
                           "additionalProperties": false
                         },
@@ -42030,43 +40811,6 @@
         }
       }
     },
-    "/v1/notifications/consents": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/notifications/consents/{consentId}/override": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "consentId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/notifications/consents/opt-out": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/v1/notification-templates/{templateCode}/{channel}/test-send": {
       "post": {
         "requestBody": {
@@ -45882,8 +44626,7 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox",
-                                  "fy_webhook"
+                                  "mapbox"
                                 ]
                               },
                               "configured": {
@@ -45965,8 +44708,7 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox",
-                                  "fy_webhook"
+                                  "mapbox"
                                 ]
                               },
                               "configured": {
@@ -46043,8 +44785,7 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox",
-                "fy_webhook"
+                "mapbox"
               ]
             },
             "in": "path",
@@ -46068,8 +44809,7 @@
                           "enum": [
                             "resend",
                             "mobile_message",
-                            "mapbox",
-                            "fy_webhook"
+                            "mapbox"
                           ]
                         },
                         "configured": {
@@ -46128,8 +44868,7 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox",
-                "fy_webhook"
+                "mapbox"
               ]
             },
             "in": "path",
@@ -46178,8 +44917,7 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox",
-                "fy_webhook"
+                "mapbox"
               ]
             },
             "in": "path",
@@ -46249,7 +44987,8 @@
                     "items": {
                       "type": "string",
                       "enum": [
-                        "bot:fy"
+                        "bot:fy",
+                        "bot:mail"
                       ]
                     },
                     "maxItems": 10,

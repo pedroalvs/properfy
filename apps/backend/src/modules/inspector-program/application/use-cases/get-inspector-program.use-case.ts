@@ -33,12 +33,13 @@ export class GetInspectorProgramUseCase {
     const { inspectorId } = input;
     const now = this.clock.now();
 
-    const [standing, progress, indexes, awards, programSettings] = await Promise.all([
+    const [standing, progress, indexes, awards, programSettings, reliabilitySettings] = await Promise.all([
       this.standing.getStanding(inspectorId, now),
       this.standing.getActiveGoalProgress(inspectorId, now),
       this.indexReader.getCurrentIndexes(),
       this.recentAwards.findRecentByInspector(inspectorId, 50),
       this.settings.get('inspectorProgram'),
+      this.settings.get('reliabilityIndex'),
     ]);
 
     const snapshotDate =
@@ -99,6 +100,9 @@ export class GetInspectorProgramUseCase {
           score: standing.index.score,
           status: standing.index.status,
           snapshotDate: standing.index.snapshotDate,
+          // The reliability-index minimum volume ("Minimum services to be ranked"),
+          // surfaced so the PWA Challenges copy reflects the configured threshold.
+          minimumVolume: reliabilitySettings.minimumVolume,
         },
         level: standing.level,
         streak: standing.streak,

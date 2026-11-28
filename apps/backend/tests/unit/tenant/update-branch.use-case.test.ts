@@ -318,6 +318,67 @@ describe('UpdateBranchUseCase', () => {
       expect(updatePayload().geocodedPermanentlyAt).toBeInstanceOf(Date);
     });
 
+    it('3b. V10: editing another field on a legacy branch (null marker, unlocatable address) with the SAME address saves without coords, never 422', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({ name: 'Old Name', addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: null }),
+      );
+      // The drawer resends the address unchanged; the permanent geocoder still can't
+      // locate it (coarse). This must not block a name/email edit.
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.81, lng: 151.0, placeType: 'place', relevance: 0.6 }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await expect(
+        uc.execute({
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: {
+            name: 'New Name',
+            address: { street: '1 Main St', suburb: 'Parramatta', state: 'NSW', postcode: '2150', country: 'AU' },
+          },
+          actor: makeActor(),
+        }),
+      ).resolves.toBeDefined();
+
+      const payload = updatePayload();
+      expect(payload.name).toBe('New Name');
+      expect(payload.addressJson).not.toHaveProperty('latitude');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+    });
+
+    it('3c. O-9: a no-COUNTRY legacy branch re-sent with country AU is unchanged → recovery geocode, no 422', async () => {
+      // Legacy address_json without a country (the real DEV shape). The drawer
+      // re-sends it with country 'AU' (branchAddressSchema default). The fixed
+      // isSameGeocodingAddress treats these as the SAME address, so a coarse
+      // recovery result saves without coordinates instead of 422-ing the edit.
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({
+          addressJson: { street: '45 Pacific Hwy', suburb: 'North Sydney', state: 'NSW', postcode: '2060' },
+          geocodedPermanentlyAt: null,
+        }),
+      );
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.84, lng: 151.2, placeType: 'place', relevance: 0.6 }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await expect(
+        uc.execute({
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: {
+            name: 'Renamed',
+            address: { street: '45 Pacific Hwy', suburb: 'North Sydney', city: 'North Sydney', state: 'NSW', postcode: '2060', country: 'AU' },
+          },
+          actor: makeActor(),
+        }),
+      ).resolves.toBeDefined();
+
+      // Recovery still ATTEMPTS to locate (no stored marker), but the unchanged
+      // address is never rejected with a 422.
+      expect(geocoder.geocode).toHaveBeenCalledTimes(1);
+      const payload = updatePayload();
+      expect(payload.addressJson).not.toHaveProperty('latitude');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+    });
+
     it('4. does not geocode or touch address when only the name changes', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(
         makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
@@ -334,13 +395,48 @@ describe('UpdateBranchUseCase', () => {
       expect('geocodedPermanentlyAt' in payload).toBe(false);
     });
 
-    it('5. drops the coordinate and nulls the marker explicitly when a changed address returns null', async () => {
+    it('5. rejects with 422 NOT_FOUND and writes nothing when a changed address returns null (V-2)', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(
         makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
       );
       const geocoder = { geocode: vi.fn().mockResolvedValue(null) };
-      const logger = makeLogger();
-      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await expect(
+        uc.execute({
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: { address: { street: '99 Other St', suburb: 'Newtown', state: 'NSW', postcode: '2042', country: 'AU' } },
+          actor: makeActor(),
+        }),
+      ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'NOT_FOUND' }] });
+      expect(branchRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('5b. rule A: a changed address returning a coarse result rejects with 422 COARSE_RESULT, writes nothing (V-2)', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
+      );
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.8, lng: 151.2, placeType: 'postcode', relevance: 0.522 }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await expect(
+        uc.execute({
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: { address: { street: '99 Other St', suburb: 'Newtown', state: 'NSW', postcode: '2042', country: 'AU' } },
+          actor: makeActor(),
+        }),
+      ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'COARSE_RESULT' }] });
+      expect(branchRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('5c. rule A: a confident address (>=0.8) still stores coordinates', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
+      );
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894, suburb: 'Newtown' }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
 
       await uc.execute({
         tenantId: 'tenant-1',
@@ -350,12 +446,8 @@ describe('UpdateBranchUseCase', () => {
       });
 
       const payload = updatePayload();
-      expect(payload.addressJson).not.toHaveProperty('latitude');
-      expect(payload.geocodedPermanentlyAt).toBeNull();
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: 'no_results' }),
-        'branch.geocode_failed_saved_without_coordinates',
-      );
+      expect(payload.addressJson).toMatchObject({ latitude: -33.868, longitude: 151.209 });
+      expect(payload.geocodedPermanentlyAt).toBeInstanceOf(Date);
     });
 
     it('6. drops the coordinate and nulls the marker on an account error (changed address)', async () => {

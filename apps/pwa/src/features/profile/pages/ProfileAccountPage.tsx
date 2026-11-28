@@ -12,8 +12,12 @@ import {
   stripNonDigits,
   toE164Au,
   inspectorBaseAddressSchema,
+  ADDRESS_NOT_VERIFIED_MESSAGES,
+  ADDRESS_CHECK_OFFLINE_MESSAGE,
+  type AddressNotVerifiedReason,
 } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { TopBar } from '@/components/shell/TopBar';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -84,6 +88,9 @@ type BaseAddressFormValues = BaseAddressFieldsValues;
 
 const EMPTY_BASE_ADDRESS: BaseAddressFormValues = EMPTY_BASE_ADDRESS_FIELDS;
 
+// 'geocode-failed' now means ONLY "saved, but the provider could not check the
+// address right now" (V-3/V4). An invalid address no longer reaches this state —
+// the server rejects it with a 422 and the card shows the per-reason error block.
 type BaseSaveState = 'idle' | 'ok' | 'geocode-failed';
 
 /**
@@ -95,6 +102,7 @@ type BaseSaveState = 'idle' | 'ok' | 'geocode-failed';
  */
 function BaseAddressCard() {
   const location = useLocation();
+  const isOnline = useIsOnline();
   const { data: me, isLoading, isError, refetch } = useInspectorMe();
   const { mutateAsync: updateSelf, isPending } = useUpdateInspectorSelf();
   const inspector = me?.data;
@@ -124,6 +132,9 @@ function BaseAddressCard() {
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<BaseSaveState>('idle');
+  // V-3: the on-save rejection reason (422 ADDRESS_NOT_VERIFIED), shown as the
+  // per-reason error block. Cleared on edit and at the start of each save.
+  const [addressNotVerified, setAddressNotVerified] = useState<AddressNotVerifiedReason | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const didDeepLinkRef = useRef(false);
@@ -142,6 +153,13 @@ function BaseAddressCard() {
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
     };
   }, []);
+
+  // Editing any field clears the on-save rejection block so the next save re-checks
+  // the corrected address (parity with the web drawer, §5.3).
+  useEffect(() => {
+    const sub = form.watch(() => setAddressNotVerified(null));
+    return () => sub.unsubscribe();
+  }, [form]);
 
   // Deep link: scroll to the card and focus the first empty field. A direct DOM
   // query (in field order) is used rather than RHF `setFocus` so focus is reliable
@@ -162,8 +180,11 @@ function BaseAddressCard() {
 
   const handleSave = useCallback(
     async (values: BaseAddressFormValues) => {
+      // Validating the address needs the server + Mapbox: never pretend to save offline.
+      if (!isOnline) return;
       setSaveError(null);
       setSaveState('idle');
+      setAddressNotVerified(null);
       try {
         const result = await updateSelf({
           address: toInspectorBaseAddress(values),
@@ -174,7 +195,11 @@ function BaseAddressCard() {
         if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
         successTimeoutRef.current = setTimeout(() => setSaveState('idle'), TIMING.toastDismiss);
       } catch (err) {
-        if (err instanceof UpdateInspectorSelfError && err.details?.length) {
+        // V-3: an unverifiable address (422) shows the per-reason block, not a field
+        // error or a generic message.
+        if (err instanceof UpdateInspectorSelfError && err.addressNotVerifiedReason) {
+          setAddressNotVerified(err.addressNotVerifiedReason);
+        } else if (err instanceof UpdateInspectorSelfError && err.details?.length) {
           let mapped = false;
           for (const issue of err.details) {
             const field = issue.path[issue.path.length - 1];
@@ -189,7 +214,7 @@ function BaseAddressCard() {
         }
       }
     },
-    [updateSelf, form],
+    [updateSelf, form, isOnline],
   );
 
   if (isLoading) {
@@ -237,6 +262,17 @@ function BaseAddressCard() {
         <form onSubmit={form.handleSubmit(handleSave)} noValidate className="mt-4 flex flex-col gap-3">
           <BaseAddressFields control={form.control} />
 
+          {addressNotVerified && (
+            <div role="alert" className="rounded-btn bg-destructive/10 p-3">
+              <p className="text-xs font-medium text-destructive">
+                {ADDRESS_NOT_VERIFIED_MESSAGES[addressNotVerified].field}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {ADDRESS_NOT_VERIFIED_MESSAGES[addressNotVerified].support}
+              </p>
+            </div>
+          )}
+
           {saveError && <p className="text-xs text-destructive">{saveError}</p>}
           {saveState === 'ok' && (
             <p role="status" aria-live="polite" className="text-xs text-success">
@@ -245,12 +281,18 @@ function BaseAddressCard() {
           )}
           {saveState === 'geocode-failed' && (
             <p role="status" aria-live="polite" className="text-xs text-warning">
-              Saved, but we couldn&apos;t locate this address. Please check it.
+              Saved. We couldn&apos;t check this address right now.
+            </p>
+          )}
+
+          {isDirty && !isOnline && (
+            <p role="status" className="text-xs text-muted-foreground">
+              {ADDRESS_CHECK_OFFLINE_MESSAGE}
             </p>
           )}
 
           {isDirty && (
-            <Button type="submit" loading={isPending} className="w-full">
+            <Button type="submit" loading={isPending} disabled={!isOnline} className="w-full">
               {isPending ? 'Saving…' : 'Save address'}
             </Button>
           )}

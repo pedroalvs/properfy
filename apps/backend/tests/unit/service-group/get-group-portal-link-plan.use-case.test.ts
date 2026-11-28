@@ -117,19 +117,22 @@ describe('GetGroupPortalLinkPlanUseCase', () => {
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('OP only sees its own tenant rows (cross-tenant group filtered)', async () => {
+  it('OP with no agency (tenantId null) previews every member of a cross-tenant group (O-19 D1)', async () => {
+    // OP is cross-tenant and always has tenantId null, so the old
+    // `r.tenantId === actor.tenantId` filter matched nothing and the dialog showed
+    // 0 total. The OP must preview the members of every agency in the group.
     groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
-      row({ id: 'mine', tenantId: 'tenant-1' }),
-      row({ id: 'theirs', tenantId: 'tenant-2' }),
+      row({ id: 'agency-x', tenantId: 'tenant-1' }),
+      row({ id: 'agency-y', tenantId: 'tenant-2' }),
     ]);
 
     const result = await useCase.execute({
       groupId: 'group-1',
-      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+      actor: makeActor({ role: 'OP', tenantId: null }),
     });
 
-    expect(result.items.map((i) => i.appointmentId)).toEqual(['mine']);
-    expect(result.summary.total).toBe(1);
+    expect(result.items.map((i) => i.appointmentId)).toEqual(['agency-x', 'agency-y']);
+    expect(result.summary.total).toBe(2);
   });
 
   it('AM sees all rows of a cross-tenant group (no tenant filter)', async () => {

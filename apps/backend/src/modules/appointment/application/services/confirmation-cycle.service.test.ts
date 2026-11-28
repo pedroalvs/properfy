@@ -38,18 +38,43 @@ function makeAudit(): AuditService {
   return { log: vi.fn() } as unknown as AuditService;
 }
 
-function makePrisma(_txFn?: (tx: Prisma.TransactionClient) => Promise<unknown>): PrismaClient {
+/** Default appointment row returned by the in-tx `appointment.findUnique` read. */
+function makeAppointmentRow(status = 'PENDING') {
+  return {
+    rental_tenant_confirmation_status: status,
+    scheduled_date: new Date('2026-06-01'),
+    time_slot_start: '09:00',
+    time_slot_end: '10:00',
+  };
+}
+
+function makePrisma(appointmentStatus = 'PENDING'): PrismaClient {
   const appointmentUpdate = vi.fn();
+  // O-11: createInitial/confirm/markUnavailable read the appointment's current
+  // confirmation status + schedule in the same transaction.
+  const appointmentFindUnique = vi.fn().mockResolvedValue(makeAppointmentRow(appointmentStatus));
   const tokenUpdate = vi.fn();
+  const appointment = { updateMany: appointmentUpdate, findUnique: appointmentFindUnique };
   const tx = {
-    appointment: { updateMany: appointmentUpdate },
+    appointment,
     rentalTenantPortalToken: { update: tokenUpdate },
   } as unknown as Prisma.TransactionClient;
   return {
     $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
-    appointment: { updateMany: appointmentUpdate },
+    appointment,
     rentalTenantPortalToken: { update: tokenUpdate },
   } as unknown as PrismaClient;
+}
+
+/** A caller-owned tx mock that carries the same reads/writes the service uses. */
+function makeTx(appointmentStatus = 'PENDING'): Prisma.TransactionClient {
+  return {
+    appointment: {
+      updateMany: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(makeAppointmentRow(appointmentStatus)),
+    },
+    rentalTenantPortalToken: { update: vi.fn() },
+  } as unknown as Prisma.TransactionClient;
 }
 
 describe('ConfirmationCycleService', () => {
@@ -65,6 +90,105 @@ describe('ConfirmationCycleService', () => {
       expect(repo.save).toHaveBeenCalledOnce();
       expect(result.status).toBe('PENDING');
       expect(result.portalTokenId).toBe('token-1');
+    });
+
+    // O-11 (option A): a CONFIRMED appointment that has no cycle (confirmed via the
+    // automatic email / force / group-join before any manual link) must NOT be reset
+    // to PENDING when a link is generated — the first cycle adopts the confirmation.
+    it('adopts an existing CONFIRMED appointment into a CONFIRMED cycle, not PENDING (O-11 A)', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
+      const prisma = makePrisma('CONFIRMED');
+      const svc = new ConfirmationCycleService(repo, makeAudit(), prisma);
+
+      const result = await svc.createInitial('appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-1');
+
+      expect(result.status).toBe('CONFIRMED');
+      expect(repo.save).toHaveBeenCalledOnce();
+      // The denorm cache stays CONFIRMED — the confirmation is preserved.
+      expect(vi.mocked(prisma.appointment.updateMany)).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ rental_tenant_confirmation_status: 'CONFIRMED' }) }),
+      );
+    });
+
+    it('opens a fresh PENDING cycle for a non-CONFIRMED appointment (UNAVAILABLE re-opens, decision 2)', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
+      const prisma = makePrisma('UNAVAILABLE');
+      const svc = new ConfirmationCycleService(repo, makeAudit(), prisma);
+
+      const result = await svc.createInitial('appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-1');
+
+      expect(result.status).toBe('PENDING');
+    });
+
+    // O-11 regression (decision 2): option B made "can't attend" a durable ACTIVE
+    // UNAVAILABLE cycle, so the no-active reopen branch above became unreachable for
+    // it. A new link for an appointment whose active cycle is UNAVAILABLE must still
+    // RE-OPEN to PENDING — supersede the UNAVAILABLE cycle (history), open a fresh
+    // PENDING cycle linked to the new token, and audit the reset on the appointment.
+    it('reopens an ACTIVE UNAVAILABLE cycle to PENDING, superseding it, with a reset audit (O-11 regression)', async () => {
+      const repo = makeRepo();
+      const unavailable = makeCycle({ status: 'UNAVAILABLE', portalTokenId: 'old-token' });
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(unavailable);
+      const audit = makeAudit();
+      const prisma = makePrisma('UNAVAILABLE');
+      const svc = new ConfirmationCycleService(repo, audit, prisma);
+
+      const result = await svc.createInitial(
+        'appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-new', undefined, undefined,
+        { actorId: 'op-1', cause: 'PORTAL_LINK_GENERATED' },
+      );
+
+      expect(result.status).toBe('PENDING');
+      expect(result.portalTokenId).toBe('token-new');
+      // Old UNAVAILABLE cycle is superseded (preserved as history), new PENDING saved.
+      expect(vi.mocked(repo.update)).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'SUPERSEDED' }),
+        expect.anything(),
+      );
+      expect(repo.save).toHaveBeenCalledOnce();
+      // Denorm reset to PENDING.
+      expect(vi.mocked(prisma.appointment.updateMany)).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ rental_tenant_confirmation_status: 'PENDING' }) }),
+      );
+      // Appointment-level reset audit (option C) with actor + cause.
+      expect(vi.mocked(audit.log)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'appointment.rental_tenant_confirmation_reset',
+          actorId: 'op-1',
+          entityType: 'Appointment',
+          before: { rentalTenantConfirmationStatus: 'UNAVAILABLE' },
+          after: { rentalTenantConfirmationStatus: 'PENDING' },
+          metadata: { cause: 'PORTAL_LINK_GENERATED' },
+        }),
+      );
+    });
+
+    it('leaves an ACTIVE CONFIRMED cycle intact (no reopen, no reset) when a link is generated (O-11)', async () => {
+      const repo = makeRepo();
+      const confirmed = makeCycle({ status: 'CONFIRMED', portalTokenId: null });
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(confirmed);
+      const audit = makeAudit();
+      const prisma = makePrisma('CONFIRMED');
+      const svc = new ConfirmationCycleService(repo, audit, prisma);
+
+      const result = await svc.createInitial(
+        'appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-new', undefined, undefined,
+        { actorId: 'op-1', cause: 'PORTAL_LINK_GENERATED' },
+      );
+
+      expect(result.status).toBe('CONFIRMED');
+      // Token linked to the existing cycle — no supersede, no new cycle.
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(vi.mocked(repo.update)).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'SUPERSEDED' }),
+        expect.anything(),
+      );
+      // No reset audit.
+      expect(vi.mocked(audit.log)).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'appointment.rental_tenant_confirmation_reset' }),
+      );
     });
 
     it('should link new token to existing PENDING cycle with same date/slot', async () => {
@@ -98,7 +222,7 @@ describe('ConfirmationCycleService', () => {
         .mockResolvedValueOnce(null) // run(): no active cycle → insert path
         .mockResolvedValueOnce(makeCycle({ status: 'PENDING' })); // an in-tx retry would read here
       vi.mocked(repo.save).mockRejectedValue(p2002);
-      const tx = {} as unknown as Prisma.TransactionClient;
+      const tx = makeTx();
       const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
 
       await expect(
@@ -150,10 +274,33 @@ describe('ConfirmationCycleService', () => {
       expect(repo.update).not.toHaveBeenCalled();
     });
 
-    it('should throw when no active cycle exists', async () => {
+    // O-11 (option B): a confirmation can arrive before any cycle exists (automatic
+    // SCHEDULED email, force-confirm, group join). confirm() now CREATES the cycle
+    // already CONFIRMED instead of throwing ConfirmationCycleNotFoundError, so the
+    // confirmation is durable and a later portal link adopts it.
+    it('creates a CONFIRMED cycle when no active cycle exists (O-11 B)', async () => {
       const repo = makeRepo();
       vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
-      const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
+      const prisma = makePrisma('PENDING');
+      const svc = new ConfirmationCycleService(repo, makeAudit(), prisma);
+
+      const result = await svc.confirm('appt-1', 'tenant-1', 'RENTAL_TENANT_PORTAL', 'token-1');
+
+      expect(result.status).toBe('CONFIRMED');
+      expect(result.confirmationSource).toBe('RENTAL_TENANT_PORTAL');
+      expect(repo.save).toHaveBeenCalledOnce();
+      // The denorm cache is set to CONFIRMED on the created cycle.
+      expect(vi.mocked(prisma.appointment.updateMany)).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ rental_tenant_confirmation_status: 'CONFIRMED' }) }),
+      );
+    });
+
+    it('still throws ConfirmationCycleNotFoundError if the appointment vanished mid-tx', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
+      const prisma = makePrisma();
+      vi.mocked(prisma.appointment.findUnique).mockResolvedValue(null as never);
+      const svc = new ConfirmationCycleService(repo, makeAudit(), prisma);
 
       await expect(svc.confirm('appt-1', 'tenant-1', 'RENTAL_TENANT_PORTAL', null)).rejects.toThrow();
     });
@@ -170,6 +317,90 @@ describe('ConfirmationCycleService', () => {
 
       expect(result.status).toBe('UNAVAILABLE');
       expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    // O-11 (option B): "can't attend" can be the tenant's first response with no
+    // cycle yet — create it already UNAVAILABLE instead of throwing.
+    it('creates an UNAVAILABLE cycle when no active cycle exists (O-11 B)', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
+      const prisma = makePrisma('PENDING');
+      const svc = new ConfirmationCycleService(repo, makeAudit(), prisma);
+
+      const result = await svc.markUnavailable('appt-1', 'tenant-1');
+
+      expect(result.status).toBe('UNAVAILABLE');
+      expect(repo.save).toHaveBeenCalledOnce();
+    });
+  });
+
+  // O-11 (option C): a portal-link operation that changes the appointment's
+  // confirmation status writes an audit ON THE APPOINTMENT (entityId = appointment)
+  // with before/after, the operator and the cause, so the web timeline shows it.
+  describe('appointment-level reset audit (O-11 C)', () => {
+    it('records PORTAL_LINK_GENERATED when createInitial re-opens a non-CONFIRMED status', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
+      const audit = makeAudit();
+      const svc = new ConfirmationCycleService(repo, audit, makePrisma('UNAVAILABLE'));
+
+      await svc.createInitial(
+        'appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-1',
+        undefined, undefined, { actorId: 'op-1', cause: 'PORTAL_LINK_GENERATED' },
+      );
+
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'appointment.rental_tenant_confirmation_reset',
+          entityType: 'Appointment',
+          entityId: 'appt-1',
+          actorId: 'op-1',
+          before: { rentalTenantConfirmationStatus: 'UNAVAILABLE' },
+          after: { rentalTenantConfirmationStatus: 'PENDING' },
+          metadata: { cause: 'PORTAL_LINK_GENERATED' },
+        }),
+      );
+    });
+
+    it('does NOT record a reset when createInitial adopts a CONFIRMED appointment (no status change)', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
+      const audit = makeAudit();
+      const svc = new ConfirmationCycleService(repo, audit, makePrisma('CONFIRMED'));
+
+      await svc.createInitial(
+        'appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-1',
+        undefined, undefined, { actorId: 'op-1', cause: 'PORTAL_LINK_GENERATED' },
+      );
+
+      const resetCalls = vi.mocked(audit.log).mock.calls.filter(
+        (c) => (c[0] as { action: string }).action === 'appointment.rental_tenant_confirmation_reset',
+      );
+      expect(resetCalls).toHaveLength(0);
+    });
+
+    it('records GROUP_PORTAL_LINK_RESEND when rotateOnDateChange resets a CONFIRMED appointment', async () => {
+      const repo = makeRepo();
+      vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(makeCycle({ status: 'CONFIRMED' }));
+      const audit = makeAudit();
+      const svc = new ConfirmationCycleService(repo, audit, makePrisma('CONFIRMED'));
+
+      await svc.rotateOnDateChange(
+        'appt-1', 'tenant-1', new Date('2026-07-01'), '11:00-12:00', 'DATE_CHANGED',
+        undefined, undefined, { actorId: 'op-2', cause: 'GROUP_PORTAL_LINK_RESEND' },
+      );
+
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'appointment.rental_tenant_confirmation_reset',
+          entityType: 'Appointment',
+          entityId: 'appt-1',
+          actorId: 'op-2',
+          before: { rentalTenantConfirmationStatus: 'CONFIRMED' },
+          after: { rentalTenantConfirmationStatus: 'PENDING' },
+          metadata: { cause: 'GROUP_PORTAL_LINK_RESEND' },
+        }),
+      );
     });
   });
 

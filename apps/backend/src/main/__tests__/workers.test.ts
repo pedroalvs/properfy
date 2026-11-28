@@ -75,7 +75,6 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // auditRetentionWorker
     makeWorkerMock() as any,   // rejectUnconfirmedWorker
     makeWorkerMock() as any,   // cancelEmptyGroupsWorker
-    { deliver: vi.fn().mockResolvedValue(undefined) } as any, // fyWebhookDispatcher
     makeWorkerMock() as any,   // deliverInspectorNoticeUseCase
     makeWorkerMock() as any,   // sweepUndeliveredInspectorNoticesUseCase
     makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase

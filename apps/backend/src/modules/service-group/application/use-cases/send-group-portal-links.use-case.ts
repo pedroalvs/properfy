@@ -10,6 +10,7 @@ import type { IIdempotencyService } from '../../../../shared/domain/idempotency.
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
 import { isTenantNotificationsBlockedError } from '../../../appointment/domain/tenant-notifications-blocked';
 import { PortalAppointmentDatePastError } from '../../../rental-tenant-portal/domain/rental-tenant-portal.errors';
@@ -118,8 +119,12 @@ export class SendGroupPortalLinksUseCase {
     }
 
     const rows = await this.groupRepo.findGroupAppointmentsWithConfirmation(input.groupId);
-    // OP acts only on their own tenant's appointments; AM is cross-tenant.
-    const tenantScoped = input.actor.role === 'AM' ? rows : rows.filter((r) => r.tenantId === input.actor.tenantId);
+    // Cross-tenant roles (AM/OP) send to every group member; tenant-pinned roles
+    // (CL_*) act only on their own agency's members. `requireTenantScope` returns
+    // undefined for cross-tenant and the pinned tenant otherwise (AM/OP route, so
+    // INSP/TNT never reach it).
+    const tenantScope = requireTenantScope(input.actor, 'send group portal links');
+    const tenantScoped = tenantScope === undefined ? rows : rows.filter((r) => r.tenantId === tenantScope);
     const inScope = input.appointmentIds
       ? tenantScoped.filter((r) => input.appointmentIds!.includes(r.id))
       : tenantScoped;
@@ -218,6 +223,9 @@ export class SendGroupPortalLinksUseCase {
                 'DATE_CHANGED',
                 ctx.tx,
                 ctx.defer,
+                // O-11 (option C): a stale CONFIRMED reset by the group resend is
+                // recorded on the appointment with the operator + the group cause.
+                { actorId: input.actor.userId, cause: 'GROUP_PORTAL_LINK_RESEND' },
               );
               return { action: 'SEND_AFTER_RESET', afterCommit: await generation.runWritePhase() };
             }),

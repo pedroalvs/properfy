@@ -284,8 +284,8 @@ export class StartInspectionUseCase {
       after: {
         appointmentId,
         inspectorId: actor.inspectorId,
-        startLatitude: latitude,
-        startLongitude: longitude,
+        // §7.9: raw inspector GPS is never stored in the audit — only on
+        // inspection_executions. Distance/accuracy/flags are kept.
         geolocationDistanceMeters,
         accuracyMeters: accuracy,
         outOfRadius: geofence.outOfRadius,
@@ -301,8 +301,7 @@ export class StartInspectionUseCase {
       entityId: appointmentId,
       tenantId: appointment.tenantId,
       metadata: {
-        latitude,
-        longitude,
+        // §7.9: no raw inspector GPS in the audit — distance/accuracy/flags only.
         geolocationDistanceMeters,
         accuracyMeters: accuracy,
         clientOccurredAt: input.clientOccurredAt ?? null,
@@ -325,8 +324,8 @@ export class StartInspectionUseCase {
         tenantId: appointment.tenantId,
         metadata: {
           phase: 'START',
-          inspectorLatitude: latitude,
-          inspectorLongitude: longitude,
+          // §7.9: no raw inspector GPS in the audit. Property coordinates are
+          // not inspector GPS and are retained for the mismatch record.
           propertyLatitude: propertyLat,
           propertyLongitude: propertyLng,
           distanceMeters: geolocationDistanceMeters,

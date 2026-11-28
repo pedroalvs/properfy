@@ -25,7 +25,7 @@ import {
   TERMINAL_APPOINTMENT_STATUSES,
 } from '@properfy/shared';
 import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
-import { LINKABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
+import { ADDABLE_GROUP_STATUSES, LINKABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 import { formatDate, startOfPlatformToday } from '../../../shared/domain/timezone-date';
 
@@ -1633,5 +1633,155 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         currentSize: Number(row.appt_count),
         serviceTypeName: row.service_type_name,
       }));
+  }
+
+  async findMoveTargetsForAppointments(params: {
+    serviceTypeId: string;
+    batchSize: number;
+    lowerBoundDate: string;
+    excludeGroupIds: string[];
+  }): Promise<Array<{
+    id: string;
+    groupNumber: number;
+    code: string;
+    status: string;
+    scheduledDate: Date;
+    timeWindow: string;
+    currentSize: number;
+    serviceTypeName: string | null;
+  }>> {
+    const capacity = 30;
+
+    type Row = {
+      id: string;
+      group_number: number;
+      status: string;
+      scheduled_date: Date;
+      time_window: string;
+      appt_count: bigint;
+      service_type_name: string | null;
+    };
+
+    // The appointments' current groups are never their own move target.
+    const excludeFilter =
+      params.excludeGroupIds.length > 0
+        ? Prisma.sql`AND sg.id NOT IN (${Prisma.join(params.excludeGroupIds)})`
+        : Prisma.empty;
+
+    const rows = await this.prisma.$queryRaw<Row[]>`
+      SELECT
+        sg.id,
+        sg.group_number,
+        sg.status::text,
+        sg.scheduled_date,
+        sg.time_window,
+        sg.service_type_id,
+        COUNT(a.id) AS appt_count,
+        st.name AS service_type_name
+      FROM service_groups sg
+      LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
+      LEFT JOIN service_types st ON st.id = sg.service_type_id
+      WHERE sg.service_type_id = ${params.serviceTypeId}
+        AND sg.status IN ('DRAFT', 'PUBLISHED', 'ACCEPTED')
+        AND sg.scheduled_date >= ${params.lowerBoundDate}::date
+        ${excludeFilter}
+      GROUP BY sg.id, sg.group_number, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
+      ORDER BY sg.scheduled_date ASC, sg.created_at ASC
+    `;
+
+    return rows
+      .filter((row) => Number(row.appt_count) + params.batchSize <= capacity)
+      .map((row) => ({
+        id: row.id,
+        groupNumber: row.group_number,
+        code: String(row.group_number),
+        status: row.status,
+        scheduledDate: row.scheduled_date,
+        timeWindow: row.time_window,
+        currentSize: Number(row.appt_count),
+        serviceTypeName: row.service_type_name,
+      }));
+  }
+
+  async moveAppointmentBetweenGroups(params: {
+    appointmentId: string;
+    fromGroupId: string;
+    toGroupId: string;
+    expectedTargetInspectorId: string | null;
+  }): Promise<'MOVED_SCHEDULED' | 'MOVED_AWAITING' | 'GROUP_CHANGED' | 'APPOINTMENT_CONFLICT'> {
+    const { appointmentId, fromGroupId, toGroupId, expectedTargetInspectorId } = params;
+    return this.prisma.$transaction(async (tx) => {
+      // Lock BOTH group rows so a concurrent accept / reject / reassign / move
+      // serializes behind us. Acquire the locks in a fixed (sorted) id order so two
+      // moves touching the same pair in opposite directions cannot deadlock.
+      const orderedIds = [fromGroupId, toGroupId].sort();
+      const locked: Record<string, { status: string; assignedInspectorId: string | null }> = {};
+      for (const id of orderedIds) {
+        const rows = await tx.$queryRaw<Array<{ status: string; assigned_inspector_id: string | null }>>`
+          SELECT status::text AS status, assigned_inspector_id
+            FROM service_groups
+           WHERE id = ${id}
+             FOR UPDATE
+        `;
+        const row = rows[0];
+        if (!row) return 'GROUP_CHANGED';
+        locked[id] = { status: row.status, assignedInspectorId: row.assigned_inspector_id };
+      }
+
+      const target = locked[toGroupId]!;
+      const source = locked[fromGroupId]!;
+      if (!ADDABLE_GROUP_STATUSES.has(target.status as ServiceGroupStatus)) return 'GROUP_CHANGED';
+
+      const targetAccepted = target.status === 'ACCEPTED';
+      if (targetAccepted && (!target.assignedInspectorId || target.assignedInspectorId !== expectedTargetInspectorId)) {
+        return 'GROUP_CHANGED';
+      }
+
+      // Lock the appointment too and re-assert it still lives in the source group and
+      // in a movable state (not soft-deleted, not terminal).
+      const apptRows = await tx.$queryRaw<Array<{ status: string; service_group_id: string | null }>>`
+        SELECT status::text AS status, service_group_id
+          FROM appointments
+         WHERE id = ${appointmentId} AND deleted_at IS NULL
+           FOR UPDATE
+      `;
+      const appt = apptRows[0];
+      if (!appt || appt.service_group_id !== fromGroupId) return 'APPOINTMENT_CONFLICT';
+      if (!['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'].includes(appt.status)) return 'APPOINTMENT_CONFLICT';
+
+      const wasScheduled = appt.status === 'SCHEDULED';
+      const sourceAccepted = source.status === 'ACCEPTED';
+
+      if (targetAccepted) {
+        await tx.$executeRaw`
+          UPDATE appointments
+             SET service_group_id = ${toGroupId},
+                 status = 'SCHEDULED'::"AppointmentStatus",
+                 inspector_id = ${expectedTargetInspectorId},
+                 updated_at = NOW()
+           WHERE id = ${appointmentId}
+        `;
+        await tx.$executeRaw`UPDATE service_groups SET confirmed_count = confirmed_count + 1 WHERE id = ${toGroupId}`;
+      } else {
+        await tx.$executeRaw`
+          UPDATE appointments
+             SET service_group_id = ${toGroupId},
+                 status = 'AWAITING_INSPECTOR'::"AppointmentStatus",
+                 inspector_id = NULL,
+                 updated_at = NOW()
+           WHERE id = ${appointmentId}
+        `;
+      }
+
+      // An ACCEPTED source counted this member in confirmed_count while it was
+      // scheduled under the source's inspector; releasing it decrements that.
+      if (wasScheduled && sourceAccepted) {
+        await tx.$executeRaw`
+          UPDATE service_groups SET confirmed_count = GREATEST(confirmed_count - 1, 0) WHERE id = ${fromGroupId}
+        `;
+      }
+
+      return targetAccepted ? 'MOVED_SCHEDULED' : 'MOVED_AWAITING';
+    });
   }
 }

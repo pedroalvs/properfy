@@ -188,8 +188,6 @@ describe('MarketplacePage', () => {
           groupSize: 1,
           scheduledDate: '2026-03-26',
           timeWindow: '09:00-11:00',
-          priorityMode: 'STANDARD',
-          priorityExpiresAt: null,
           suburbs: ['Brunswick'],
         } as unknown as MarketplaceOffer,
       ]),
@@ -224,8 +222,6 @@ describe('MarketplacePage', () => {
           groupSize: 1,
           scheduledDate: '2026-03-26',
           timeWindow: '09:00-11:00',
-          priorityMode: 'STANDARD',
-          priorityExpiresAt: null,
           suburbs: ['Brunswick'],
         } as unknown as MarketplaceOffer,
       ]),
@@ -261,8 +257,6 @@ describe('MarketplacePage', () => {
           groupSize: 1,
           scheduledDate: '2026-03-26',
           timeWindow: '09:00-11:00',
-          priorityMode: 'STANDARD',
-          priorityExpiresAt: null,
           suburbs: ['Brunswick'],
         } as unknown as MarketplaceOffer,
       ]),
@@ -289,8 +283,6 @@ describe('MarketplacePage — map group drill-down', () => {
     groupSize: 2,
     scheduledDate: '2026-08-01',
     timeWindow: '09:00-11:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     suburbs: ['Brunswick'],
     payoutEstimate: 200,
     appointmentCount: 2,
@@ -478,8 +470,6 @@ describe('MarketplacePage — offers pagination', () => {
     groupSize: 1,
     scheduledDate: '2026-08-01',
     timeWindow: '09:00-11:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     suburbs: ['Brunswick'],
   } as unknown as MarketplaceOffer;
 
@@ -605,8 +595,6 @@ describe('MarketplacePage — tablet 2-column layout', () => {
     groupSize: 1,
     scheduledDate: '2026-03-26',
     timeWindow: '09:00-11:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     suburbs: ['Brunswick'],
   } as unknown as MarketplaceOffer;
 
@@ -699,8 +687,6 @@ describe('MarketplacePage — breakpoint crossing', () => {
     groupSize: 1,
     scheduledDate: '2026-03-26',
     timeWindow: '09:00-11:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     suburbs: ['Brunswick'],
   } as unknown as MarketplaceOffer;
 

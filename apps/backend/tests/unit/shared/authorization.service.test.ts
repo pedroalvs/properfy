@@ -68,49 +68,6 @@ describe('AuthorizationService', () => {
     });
   });
 
-  // ── T005: assertTenantScope ────────────────────────────────────────
-
-  describe('assertTenantScope', () => {
-    it('should pass for AM regardless of target tenant', () => {
-      const actor = makeAuthContext({ role: 'AM', tenantId: null });
-      expect(() =>
-        svc.assertTenantScope(actor, 'any-tenant', { action: 'test', entityType: 'Test' }),
-      ).not.toThrow();
-    });
-
-    it('should pass when actor tenant matches target tenant', () => {
-      const actor = makeAuthContext({ role: 'OP', tenantId: 'tenant-1' });
-      expect(() =>
-        svc.assertTenantScope(actor, 'tenant-1', { action: 'test', entityType: 'Test' }),
-      ).not.toThrow();
-    });
-
-    it('should throw when actor tenant does not match target tenant', () => {
-      const actor = makeAuthContext({ role: 'OP', tenantId: 'tenant-1' });
-      expect(() =>
-        svc.assertTenantScope(actor, 'tenant-2', { action: 'test', entityType: 'Test' }),
-      ).toThrow(expect.objectContaining({ code: 'TENANT_SCOPE_VIOLATION', statusCode: 403 }));
-    });
-
-    it('should log audit on tenant scope violation', () => {
-      const actor = makeAuthContext({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
-      try {
-        svc.assertTenantScope(actor, 'tenant-2', { action: 'property.create', entityType: 'Property', entityId: 'p-1' });
-      } catch {
-        // expected
-      }
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'authorization.denied',
-          metadata: expect.objectContaining({
-            attemptedAction: 'property.create',
-            reason: 'TENANT_SCOPE_VIOLATION',
-          }),
-        }),
-      );
-    });
-  });
-
   // ── T006: assertNotSelfApproval ────────────────────────────────────
 
   describe('assertNotSelfApproval', () => {

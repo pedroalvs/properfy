@@ -15,6 +15,20 @@ type GeocodeOutcome =
   | { kind: 'result'; result: GeocodingResult | null }
   | { kind: 'account-error' };
 
+/**
+ * The locality / place / postcode of a Mapbox feature, read SEPARATELY from its
+ * `context` (O-14: no longer collapsed into one suburb). Context ids look like
+ * `locality.123` / `place.456` / `postcode.789`. Each is `undefined` when absent.
+ */
+function addressContext(
+  context: Array<{ id?: string; text?: string }> | undefined,
+): { locality?: string; place?: string; postcode?: string } {
+  if (!context) return {};
+  const byPrefix = (prefix: string): string | undefined =>
+    context.find((c) => typeof c.id === 'string' && c.id.startsWith(`${prefix}.`))?.text ?? undefined;
+  return { locality: byPrefix('locality'), place: byPrefix('place'), postcode: byPrefix('postcode') };
+}
+
 export class MapboxGeocodingService implements IGeocodingService {
   private readonly circuitBreaker: CircuitBreaker;
 
@@ -45,11 +59,33 @@ export class MapboxGeocodingService implements IGeocodingService {
         throw new Error(`Mapbox geocoding failed with status ${response.status}`);
       }
 
-      const data = (await response.json()) as { features?: Array<{ center?: [number, number] }> };
+      const data = (await response.json()) as {
+        features?: Array<{
+          center?: [number, number];
+          relevance?: number;
+          place_type?: string[];
+          context?: Array<{ id?: string; text?: string }>;
+        }>;
+      };
       const feature = data.features?.[0];
       if (!feature?.center) return { kind: 'result', result: null };
-      // Mapbox returns [longitude, latitude]
-      return { kind: 'result', result: { lng: feature.center[0], lat: feature.center[1] } };
+      // Mapbox returns [longitude, latitude]. Carry relevance, the most specific
+      // place type (place_type[0]) and the returned locality / place / postcode
+      // SEPARATELY so the consumer can apply rule A (O-14): non-address /
+      // low-relevance / suburb mismatch → FAILED.
+      const ctx = addressContext(feature.context);
+      return {
+        kind: 'result',
+        result: {
+          lng: feature.center[0],
+          lat: feature.center[1],
+          relevance: feature.relevance,
+          placeType: feature.place_type?.[0],
+          suburb: ctx.locality,
+          place: ctx.place,
+          postcode: ctx.postcode,
+        },
+      };
     });
 
     if (outcome.kind === 'account-error') {

@@ -21,14 +21,35 @@ function liveExecuted(c: DayPlanCandidate | undefined): boolean {
   return c.appointmentStatus === 'DONE' || (c.startedAt !== null && c.abandonedAt === null);
 }
 
+/** Address shape a BASE/OVERRIDE origin can carry (the inspector base address). */
+type OriginAddress = {
+  street?: string | null;
+  number?: string | null;
+  suburb: string;
+  state: string;
+  postcode: string;
+};
+
+/**
+ * The displayed day-start label (O-1). Includes street and number when the
+ * address has them — "12 George St, Sydney NSW 2000", not just the suburb line
+ * — so the inspector sees a specific starting point. A legacy address without a
+ * street falls back to the suburb/state/postcode line.
+ */
 function originLabel(record: DayPlanRecord, inspector: InspectorDayPlanContext, lastExecuted: DayPlanCandidate | null): string | null {
-  const addressLabel = (a: { suburb: string; state: string; postcode: string } | null): string | null =>
-    a ? `${a.suburb} ${a.state} ${a.postcode}`.trim() : null;
+  const join = (parts: (string | null | undefined)[], sep: string): string =>
+    parts.map((p) => (p ?? '').trim()).filter((p) => p !== '').join(sep);
+  const addressLabel = (a: OriginAddress | null): string | null => {
+    if (!a) return null;
+    const streetLine = join([a.number, a.street], ' ');
+    const areaLine = join([a.suburb, a.state, a.postcode], ' ');
+    return join([streetLine, areaLine], ', ') || null;
+  };
   switch (record.originSource) {
     case 'OVERRIDE':
-      return addressLabel(record.originOverride as { suburb: string; state: string; postcode: string } | null);
+      return addressLabel(record.originOverride as OriginAddress | null);
     case 'BASE':
-      return addressLabel(inspector.baseAddress as { suburb: string; state: string; postcode: string } | null);
+      return addressLabel(inspector.baseAddress as OriginAddress | null);
     case 'LAST_STOP':
       return lastExecuted?.suburb ?? null;
     default:
@@ -87,6 +108,7 @@ export function buildDayPlanResponse(
       keyRequired: c?.keyRequired ?? false,
       meetingLocation: c?.meetingLocation ?? null,
       rentalTenantConfirmationStatus: c?.rentalTenantConfirmationStatus ?? '',
+      rentalTenantNote: c?.rentalTenantNote ?? null,
       primaryContact: contact,
     };
   });

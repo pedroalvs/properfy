@@ -25,12 +25,24 @@ export function useLocalExecutionState(appointmentId: string) {
   const shouldPersistRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+    // Clearing isRestored first means a consumer never reads the previous
+    // appointment's state as if it were this one's while the row loads.
+    setIsRestored(false);
     getExecutionState(appointmentId).then((saved) => {
-      if (saved) {
-        setState(saved);
-      }
+      if (cancelled) return;
+      // Always commit the restored (or default) state, keyed by appointmentId:
+      // when the id changes to one with no saved row — the Today screen reuses
+      // the single Next card in place as the route advances to the next stop —
+      // the state must reset to the default, not keep the previous stop's row.
+      // A restore must never be written back out by the persist effect.
+      shouldPersistRef.current = false;
+      setState(saved ?? { ...DEFAULT_STATE, appointmentId });
       setIsRestored(true);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [appointmentId]);
 
   // Re-read when an *external* mutator changes this appointment's row (e.g. the

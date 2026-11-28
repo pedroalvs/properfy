@@ -21,12 +21,6 @@ export const NotificationClass = {
 } as const;
 export type NotificationClass = (typeof NotificationClass)[keyof typeof NotificationClass];
 
-export const ConsentChangeSource = {
-  operator_override: 'operator_override',
-  re_opt_in: 're_opt_in',
-} as const;
-export type ConsentChangeSource = (typeof ConsentChangeSource)[keyof typeof ConsentChangeSource];
-
 export const NotificationAttemptStatus = {
   PENDING: 'PENDING',
   SUCCESS: 'SUCCESS',

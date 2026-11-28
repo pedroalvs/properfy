@@ -2,27 +2,27 @@ import type { NotificationClass } from '@properfy/shared';
 import { cn } from '@properfy/frontend-standards';
 
 /**
- * Feature 018: visual chip for a notification's classification.
- * - TRANSACTIONAL: green — cannot be opted out
- * - OPERATIONAL: blue — recipient can opt out
- * - MARKETING: gray — opt-in only (not used in Phase 1)
+ * Visual chip for a notification's classification.
+ * - TRANSACTIONAL: green — always sent; not counted against the daily cap
+ * - OPERATIONAL: blue — counts against the agency's daily cap
+ * - MARKETING: gray — not sent
  */
 
 const CLASS_STYLES: Record<NotificationClass, { color: string; label: string; title: string }> = {
   TRANSACTIONAL: {
     color: 'bg-status-done text-status-done-text',
     label: 'Transactional',
-    title: 'Always delivered. Recipients cannot opt out of transactional notifications.',
+    title: 'Always delivered. Not counted against the daily sending cap when sent platform-wide.',
   },
   OPERATIONAL: {
     color: 'bg-status-scheduled text-status-scheduled-text',
     label: 'Operational',
-    title: 'Delivered unless the recipient has opted out of this notification class.',
+    title: "Counts against the agency's daily sending cap.",
   },
   MARKETING: {
     color: 'bg-gray-200 text-gray-700',
     label: 'Marketing',
-    title: 'Only delivered to recipients who have explicitly opted in.',
+    title: 'Marketing messages are not sent.',
   },
 };
 

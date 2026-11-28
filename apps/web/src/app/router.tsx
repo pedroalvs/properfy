@@ -69,14 +69,13 @@ const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-
 const IntegrationsPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage }))));
 const IntegrationDetailPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationDetailPage').then(m => ({ default: m.IntegrationDetailPage }))));
 const FyIntegrationPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/FyIntegrationPage').then(m => ({ default: m.FyIntegrationPage }))));
+const MailBotIntegrationPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/MailBotIntegrationPage').then(m => ({ default: m.MailBotIntegrationPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
 const AuditLogListPage = Loadable(lazyRetry(() => import('@/features/audit-logs/pages/AuditLogListPage').then(m => ({ default: m.AuditLogListPage }))));
 const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
-const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notification-consents/pages/ConsentLookupPage').then(m => ({ default: m.ConsentLookupPage }))));
-const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const PlatformSettingsPage = Loadable(lazyRetry(() => import('@/features/platform-settings/pages/PlatformSettingsPage').then(m => ({ default: m.PlatformSettingsPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
@@ -407,16 +406,6 @@ export const routes: RouteObject[] = [
             element: <Navigate to="/map?mode=groups" replace />,
           },
           {
-            path: 'marketplace',
-            // Header + fullscreen map — same clamp as /map.
-            handle: { fullHeight: true },
-            element: (
-              <AuthGuard roles={[UserRole.INSP]}>
-                <MarketplacePage />
-              </AuthGuard>
-            ),
-          },
-          {
             path: 'availability-slots',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
@@ -518,6 +507,15 @@ export const routes: RouteObject[] = [
             ),
           },
           {
+            // Literal route declared before ':provider' so it is not captured as a slug.
+            path: 'integrations/mail-bot',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <MailBotIntegrationPage />
+              </AuthGuard>
+            ),
+          },
+          {
             path: 'integrations/:provider',
             element: (
               <AuthGuard roles={[UserRole.AM]}>
@@ -554,14 +552,6 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <PlatformSettingsPage />
-              </AuthGuard>
-            ),
-          },
-          {
-            path: 'notification-consents',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <ConsentLookupPage />
               </AuthGuard>
             ),
           },

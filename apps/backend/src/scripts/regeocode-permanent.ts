@@ -24,10 +24,17 @@
 
 import {
   MapboxPermanentGeocodingUnavailableError,
+  classifyGeocodingResult,
+  MIN_ADDRESS_GEOCODING_RELEVANCE,
   type GeocodingResult,
+  type GeocodingRejectionReason,
   type IGeocodingService,
 } from '../modules/property/domain/geocoding.service';
-import { formatGeocodingQuery, type GeocodableAddress } from '../shared/domain/geocoding-address';
+import {
+  formatGeocodingQuery,
+  dropDuplicateLine2,
+  type GeocodableAddress,
+} from '../shared/domain/geocoding-address';
 import type {
   ILegacyRegeocodeRepository,
   LegacyBranchCandidate,
@@ -67,7 +74,21 @@ export type AmbiguousReason =
   | 'address_changed_in_transition'
   | 'coordinates_differ'
   | 'no_result'
+  // PR-18b: rule-A rejections of the fresh geocode (kept distinct from a genuine
+  // null so a dry/apply run measures how many false-MANUAL rows the 0.8 rule hits).
+  | 'coarse_result'
+  | 'low_relevance'
   | 'geocode_error';
+
+/** PR-18b: a rule-A-rejected legacy/branch row, with the provider evidence. */
+export interface RejectedEntry {
+  id: string;
+  tenantId: string;
+  placeType: string | null;
+  relevance: number | null;
+  /** The suburb Mapbox returned (for suburb-mismatch diagnosis); null otherwise. */
+  returnedSuburb?: string | null;
+}
 
 export interface RegeocodeReport {
   dryRun: boolean;
@@ -97,6 +118,9 @@ export interface RegeocodeReport {
     moved: number;
     skippedConcurrent: number;
     noResult: Array<{ id: string; propertyCode: string; tenantId: string }>;
+    // PR-18b: rule-A rejections, split by reason (genuine no-result stays in `noResult`).
+    rejectedCoarse: Array<RejectedEntry & { propertyCode: string }>;
+    rejectedLowRelevance: Array<RejectedEntry & { propertyCode: string }>;
     errors: Array<{ id: string; propertyCode: string; message: string }>;
   };
   branches: {
@@ -105,9 +129,17 @@ export interface RegeocodeReport {
     moved: number;
     skippedConcurrent: number;
     noResult: Array<{ id: string; name: string; tenantId: string }>;
+    // PR-18b: rule-A rejections, split by reason (genuine no-result stays in `noResult`).
+    rejectedCoarse: Array<RejectedEntry & { name: string }>;
+    rejectedLowRelevance: Array<RejectedEntry & { name: string }>;
     errors: Array<{ id: string; name: string; message: string }>;
   };
   retriedFailedPermanent: number;
+  /** Final-rule measurement (PART 3): how many geocoding queries dropped a Line 2
+   * that merely repeated the street, and how many rejections were suburb mismatches
+   * (an address with OK relevance whose returned suburb != informed suburb). */
+  lineTwoOmitted: number;
+  rejectedSuburbMismatch: number;
   aborted:
     | null
     | { code: 'MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE' | 'MAPBOX_NOT_CONFIGURED'; atEntityId: string | null };
@@ -294,9 +326,11 @@ export async function regeocodePermanent(
       ambiguous: [],
       missingAudit: [],
     },
-    properties: { scanned: 0, updated: 0, moved: 0, skippedConcurrent: 0, noResult: [], errors: [] },
-    branches: { scanned: 0, updated: 0, moved: 0, skippedConcurrent: 0, noResult: [], errors: [] },
+    properties: { scanned: 0, updated: 0, moved: 0, skippedConcurrent: 0, noResult: [], rejectedCoarse: [], rejectedLowRelevance: [], errors: [] },
+    branches: { scanned: 0, updated: 0, moved: 0, skippedConcurrent: 0, noResult: [], rejectedCoarse: [], rejectedLowRelevance: [], errors: [] },
     retriedFailedPermanent: 0,
+    lineTwoOmitted: 0,
+    rejectedSuburbMismatch: 0,
     aborted: null,
   };
 
@@ -365,21 +399,76 @@ export async function regeocodePermanent(
     constructor(public readonly atEntityId: string) {}
   }
 
+  // Rule A (PR-18): a coarse (non-address) or low-relevance result is not a
+  // usable permanent coordinate. Every write path below treats a `rejected`
+  // outcome EXACTLY like a no-result — the legacy coordinate is kept, never
+  // overwritten with a coarse pin marked SUCCESS — but records it under the
+  // reason-specific report bucket (PR-18b) so a dry/apply run measures how many
+  // real addresses the 0.8 rule rejects. Also logged per row.
+  const gateResult = (
+    result: GeocodingResult | null,
+    entityId: string,
+    kind: 'property' | 'branch' | 'false_manual',
+    expectedSuburb: string,
+    expectedPostcode: string,
+  ): GeocodeAttempt => {
+    if (!result) return { result: null };
+    const decision = classifyGeocodingResult(result, expectedSuburb, expectedPostcode);
+    // The returned suburb for reporting: the locality, falling back to the place.
+    const returnedSuburb = result.suburb ?? result.place ?? null;
+    if (!decision.accepted) {
+      logger?.warn(
+        {
+          entity: kind,
+          id: entityId,
+          code: decision.reason,
+          placeType: result.placeType,
+          relevance: result.relevance,
+          informedSuburb: expectedSuburb,
+          returnedSuburb,
+        },
+        'regeocode.result_rejected_coarse',
+      );
+      // A suburb mismatch is a LOW_RELEVANCE rejection of an address whose
+      // relevance was fine (so the only cause left is the suburb check).
+      const suburbMismatch =
+        decision.reason === 'LOW_RELEVANCE' &&
+        result.placeType === 'address' &&
+        (typeof result.relevance !== 'number' || result.relevance >= MIN_ADDRESS_GEOCODING_RELEVANCE);
+      return {
+        rejected: decision.reason,
+        placeType: result.placeType ?? null,
+        relevance: result.relevance ?? null,
+        returnedSuburb,
+        suburbMismatch,
+      };
+    }
+    return { result };
+  };
+
   // A single geocode with one 60s-delayed retry on a 429. Account error → AbortRun.
   const geocodeWithRetry = async (
     query: string,
     entityId: string,
     kind: 'property' | 'branch' | 'false_manual',
-  ): Promise<{ result: GeocodingResult | null } | { error: Error }> => {
+    expectedSuburb: string,
+    expectedPostcode: string,
+  ): Promise<GeocodeAttempt> => {
     try {
-      return { result: await geocode(query) };
+      return gateResult(await geocode(query), entityId, kind, expectedSuburb, expectedPostcode);
     } catch (err) {
       if (isAccountError(err)) throw new AbortRun(entityId);
       if (isRateLimit(err)) {
         logger?.warn({ entity: kind, id: entityId }, 'regeocode.rate_limited_retry');
         await sleep(60000);
         try {
-          return { result: await geocoder.geocode(query, { mode: 'permanent' }) };
+          return gateResult(
+            await geocoder.geocode(query, { mode: 'permanent' }),
+            entityId,
+            kind,
+            expectedSuburb,
+            expectedPostcode,
+          );
         } catch (err2) {
           if (isAccountError(err2)) throw new AbortRun(entityId);
           return { error: err2 instanceof Error ? err2 : new Error(String(err2)) };
@@ -444,11 +533,31 @@ async function selectAll<T extends { id: string }>(
 
 // --- phases -------------------------------------------------------------------
 
+/**
+ * Outcome of one gated geocode. `rejected` (PR-18b) is a rule-A failure (coarse
+ * or low-relevance): the caller keeps the legacy coordinate exactly as for a
+ * `result: null`, but records it under the reason-specific report bucket.
+ */
+export type GeocodeAttempt =
+  | { result: GeocodingResult | null }
+  | {
+      rejected: GeocodingRejectionReason;
+      placeType: string | null;
+      relevance: number | null;
+      returnedSuburb: string | null;
+      /** True when the rejection is an address that passed relevance but whose
+       * returned suburb did not match the informed suburb (reuses LOW_RELEVANCE). */
+      suburbMismatch: boolean;
+    }
+  | { error: Error };
+
 type GeocodeWithRetry = (
   query: string,
   entityId: string,
   kind: 'property' | 'branch' | 'false_manual',
-) => Promise<{ result: GeocodingResult | null } | { error: Error }>;
+  expectedSuburb: string,
+  expectedPostcode: string,
+) => Promise<GeocodeAttempt>;
 
 async function runStripImportPreviews(
   repo: ILegacyRegeocodeRepository,
@@ -524,10 +633,46 @@ async function geocodeProperty(
   auditService: Pick<AuditService, 'log'>,
   geocodeWithRetry: GeocodeWithRetry,
 ): Promise<{ outcome: string; distanceM: number | null }> {
-  const res = await geocodeWithRetry(propertyQuery(row), row.id, 'property');
+  if (row.addressLine2 && dropDuplicateLine2(row.street, row.addressLine2) === null) {
+    report.lineTwoOmitted++;
+  }
+  const res = await geocodeWithRetry(propertyQuery(row), row.id, 'property', row.suburb, row.postcode);
   if ('error' in res) {
     report.properties.errors.push({ id: row.id, propertyCode: row.propertyCode, message: res.error.message });
     return { outcome: 'error', distanceM: null };
+  }
+  if ('rejected' in res) {
+    // Rule A (PR-18b): coarse / low-relevance. Keep the legacy coordinate (same
+    // write as a no-result) but record it under the reason-specific bucket.
+    const wrote = await repo.markLegacyNoResult(row.id, row.tenantId, {
+      lat: row.lat,
+      lng: row.lng,
+      updatedAt: row.updatedAt,
+    });
+    if (wrote) {
+      const entry = {
+        id: row.id,
+        propertyCode: row.propertyCode,
+        tenantId: row.tenantId,
+        placeType: res.placeType,
+        relevance: res.relevance,
+        returnedSuburb: res.returnedSuburb,
+      };
+      if (res.rejected === 'COARSE_RESULT') report.properties.rejectedCoarse.push(entry);
+      else report.properties.rejectedLowRelevance.push(entry);
+      if (res.suburbMismatch) report.rejectedSuburbMismatch++;
+      auditService.log({
+        action: 'property.geocode_permanent_no_result',
+        actorType: 'SYSTEM',
+        entityType: 'Property',
+        entityId: row.id,
+        tenantId: row.tenantId,
+        metadata: { code: res.rejected, keptLegacyCoordinates: true, placeType: res.placeType, relevance: res.relevance },
+      });
+      return { outcome: res.rejected === 'COARSE_RESULT' ? 'rejected_coarse' : 'rejected_low_relevance', distanceM: null };
+    }
+    report.properties.skippedConcurrent++;
+    return { outcome: 'skipped_concurrent', distanceM: null };
   }
   if (res.result === null) {
     const wrote = await repo.markLegacyNoResult(row.id, row.tenantId, {
@@ -608,11 +753,31 @@ async function geocodeBranch(
   auditService: Pick<AuditService, 'log'>,
   geocodeWithRetry: GeocodeWithRetry,
 ): Promise<{ outcome: string; distanceM: number | null }> {
-  const query = formatGeocodingQuery(row.addressJson as unknown as GeocodableAddress);
-  const res = await geocodeWithRetry(query, row.id, 'branch');
+  const branchAddress = row.addressJson as unknown as GeocodableAddress;
+  const query = formatGeocodingQuery(branchAddress);
+  if (branchAddress.addressLine2 && dropDuplicateLine2(branchAddress.street, branchAddress.addressLine2) === null) {
+    report.lineTwoOmitted++;
+  }
+  const res = await geocodeWithRetry(query, row.id, 'branch', branchAddress.suburb, branchAddress.postcode);
   if ('error' in res) {
     report.branches.errors.push({ id: row.id, name: row.name, message: res.error.message });
     return { outcome: 'error', distanceM: null };
+  }
+  if ('rejected' in res) {
+    // Rule A: coarse / low-relevance / suburb-mismatch — no write (same as a
+    // no-result), recorded under the reason-specific bucket.
+    const entry = {
+      id: row.id,
+      name: row.name,
+      tenantId: row.tenantId,
+      placeType: res.placeType,
+      relevance: res.relevance,
+      returnedSuburb: res.returnedSuburb,
+    };
+    if (res.rejected === 'COARSE_RESULT') report.branches.rejectedCoarse.push(entry);
+    else report.branches.rejectedLowRelevance.push(entry);
+    if (res.suburbMismatch) report.rejectedSuburbMismatch++;
+    return { outcome: res.rejected === 'COARSE_RESULT' ? 'rejected_coarse' : 'rejected_low_relevance', distanceM: null };
   }
   if (res.result === null) {
     report.branches.noResult.push({ id: row.id, name: row.name, tenantId: row.tenantId });
@@ -691,10 +856,22 @@ async function runFalseManual(
   // Proof 2 (distance) runs only on apply.
   if (apply) {
     for (const row of candidates) {
-      const res = await geocodeWithRetry(propertyQuery(row), row.id, 'false_manual');
+      if (row.addressLine2 && dropDuplicateLine2(row.street, row.addressLine2) === null) {
+        report.lineTwoOmitted++;
+      }
+      const res = await geocodeWithRetry(propertyQuery(row), row.id, 'false_manual', row.suburb, row.postcode);
       if ('error' in res) {
         pushAmbiguous(report, row, 'geocode_error', null);
         logFalseManual(logger, row, 'ambiguous', 'geocode_error', null);
+        continue;
+      }
+      if ('rejected' in res) {
+        // Rule A: a coarse / low-relevance / suburb-mismatch fresh geocode must
+        // NOT restore the row to SUCCESS; it is ambiguous, tagged by reason.
+        const reason: AmbiguousReason = res.rejected === 'COARSE_RESULT' ? 'coarse_result' : 'low_relevance';
+        pushAmbiguous(report, row, reason, null);
+        logFalseManual(logger, row, 'ambiguous', reason, null);
+        if (res.suburbMismatch) report.rejectedSuburbMismatch++;
         continue;
       }
       if (res.result === null) {
@@ -817,11 +994,18 @@ async function main(): Promise<void> {
   const options = parsed.options;
 
   const { default: pino } = await import('pino');
+  const { validateEnv } = await import('../main/env');
   const { createContainer } = await import('../main/container');
   const { sendJob, stopQueue } = await import('../shared/infrastructure/queue');
   const { PrismaPropertyRepository } = await import(
     '../modules/property/infrastructure/prisma-property.repository'
   );
+
+  // Validate the environment before building the container — `createContainer`
+  // calls `getEnv()`, which throws until `validateEnv()` has run (as the server
+  // entrypoint does). This script uses the full container, so it must do the
+  // same or it crashes at startup with "Environment not validated".
+  validateEnv();
 
   const logger = pino({ level: process.env['LOG_LEVEL'] ?? 'info' });
   const container = createContainer(logger);

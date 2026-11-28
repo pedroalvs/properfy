@@ -8,13 +8,28 @@
 ## Invocation
 
 ```bash
-# local / dev
+# local checkout (runs the TypeScript source via tsx)
 pnpm --filter backend tsx --env-file .env src/scripts/regeocode-permanent.ts [options]
-# prod
-fly ssh console -a properfy-api -C "cd /app && node apps/backend/dist/scripts/regeocode-permanent.js [options]"
+# inside a deployed machine (runs the bundled artifact) — DEV shown; staging/prod
+# use -a properfy-api-staging / -a properfy-api. The script is bundled by tsup to
+# dist/regeocode-permanent.js (dist ROOT, not dist/scripts/).
+fly ssh console -a properfy-api-dev -C "cd /app && node apps/backend/dist/regeocode-permanent.js [options]"
 ```
 
+> The in-container artifact is `apps/backend/dist/regeocode-permanent.js` (emitted by the `regeocode-permanent` entry in `apps/backend/tsup.config.ts`). It is only present once that entry is built & shipped — a build without it leaves OPS with no artifact to run.
+
 Options: `--apply`, `--entities=properties,branches,false-manual`, `--false-manual-tolerance-m=5`, `--strip-import-previews`, `--retry-failed-permanent`, `--tenant=<uuid>`, `--limit=<n>` (per phase), `--rate=120`, `--move-threshold-m=25`. Exit codes: `0` ok, `1` account error / Mapbox not configured / unexpected, `2` bad argument or incompatible combination. See `specs/044-x02-2-legacy-regeocode/contracts/cli-regeocode-permanent.md`.
+
+**Verify the bundle before an OPS run** (no DB, no Mapbox — arg-parse only exits before any DB/Mapbox access):
+
+```bash
+pnpm --filter backend build
+node apps/backend/dist/regeocode-permanent.js --rate=0   # prints an arg error, exits 2 → the artifact bundled & boots
+```
+
+## Address rule (rule A, O-14)
+
+A geocode is accepted only when it is an **`address`** with **relevance ≥ 0.8** AND it lands in the informed suburb by EITHER: (a) its returned **locality** (Mapbox `context` `locality.*`) matches the informed suburb, OR (b) its returned **place** (`place.*`) matches the informed suburb AND its returned **postcode** (`postcode.*`) equals the informed postcode. The locality/place/postcode are now read **separately** (no longer collapsed). The place+postcode branch is the CBD case: Mapbox returns a finer locality like `The Rocks` while the address is registered at the place level `Sydney`, so the place + postcode confirm it (e.g. `100 George St, Sydney 2000` accepts; `30 Bridge St, Sydney 2000` → `Rydalmere 2116` rejects). Suburb matching is exact after normalizing case/accents/hyphens; postcode matching is exact after trimming. A result matching neither branch is rejected reusing `LOW_RELEVANCE`; a non-address level is `COARSE_RESULT`. The geocoding **query** also drops an Address Line 2 that merely repeats the street (bad-import shape) — query-only, the stored `address_line_2` is unchanged. The report adds two measurement counters: `lineTwoOmitted` (queries where L2 was dropped) and `rejectedSuburbMismatch` (address rejections caused by the suburb), and each rejected entry records the `returnedSuburb` (the returned locality, falling back to the returned place). A re-reject never deletes an existing legacy coordinate.
 
 ## Cost
 

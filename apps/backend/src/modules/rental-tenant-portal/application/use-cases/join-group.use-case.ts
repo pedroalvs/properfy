@@ -12,7 +12,6 @@ import type { ServiceGroupEntity } from '../../../service-group/domain/service-g
 import { computeWindowAvailability } from '../../../service-group/domain/portal-slot-capacity';
 import { isPortalChangeTimeBlocked } from '../../domain/portal-statuses';
 import { runInTransaction, type TransactionalResult } from '../../../../shared/application/unit-of-work';
-import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   PortalAppointmentInactiveError,
@@ -343,16 +342,15 @@ export class JoinGroupUseCase {
         input.tokenId,
       );
     } catch (err) {
-      // Only "there is no cycle" is expected here. Everything else (a DB failure
-      // mid-confirm) leaves the cycle pinned to the old date and status while the
-      // appointment column reads CONFIRMED, which later portal-link decisions
-      // read — a divergence that must not be silent.
-      if (!(err instanceof ConfirmationCycleNotFoundError)) {
-        this.logger?.error(
-          { err, appointmentId: input.appointmentId, groupId: group.id },
-          'Confirmation cycle not realigned after a portal group join; cycle and appointment status may diverge',
-        );
-      }
+      // O-11: `confirm` now CREATES a CONFIRMED cycle when none exists, so "there is
+      // no cycle" no longer happens here. Any error that reaches this point is a real
+      // failure (e.g. a DB error) that leaves the cycle and the appointment's
+      // CONFIRMED column diverged — which later portal-link decisions read — so it
+      // must be logged loudly, never swallowed.
+      this.logger?.error(
+        { err, appointmentId: input.appointmentId, groupId: group.id },
+        'Confirmation cycle not realigned after a portal group join; cycle and appointment status may diverge',
+      );
     }
   }
 

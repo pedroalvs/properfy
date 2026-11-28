@@ -27,8 +27,12 @@ import {
   appointmentSuburbsResponseSchema,
   appointmentExportResponseSchema,
   appointmentFieldActivityResponseSchema,
+  MAIL_BOT_SCOPE,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
+import { createApiKeyAuthMiddleware } from '../../../shared/interfaces/api-key-auth-middleware';
+import { requireScopeIfMachine } from '../../../shared/interfaces/require-scope-if-machine';
+import type { IApiKeyRepository } from '../../integration/domain/api-key';
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateAppointmentUseCase } from '../application/use-cases/create-appointment.use-case';
@@ -99,6 +103,12 @@ export interface AppointmentRouteContainer {
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
   idempotencyService?: IIdempotencyService;
   getPortalLinkUseCase?: GetPortalLinkUseCase;
+  /**
+   * Enables the read-only machine (X-API-Key) principal on `GET /v1/appointments`
+   * for the Mail Bot integration. Optional so route tests that only exercise JWT
+   * flows need not wire it; when absent the route stays JWT-only.
+   */
+  apiKeyRepo?: Pick<IApiKeyRepository, 'findByHash' | 'touchLastUsed'>;
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
@@ -128,6 +138,13 @@ export async function registerAppointmentRoutes(
       return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
     },
   );
+
+  // Read-only routes that also accept a scoped machine (X-API-Key) principal:
+  // humans authenticate via JWT exactly as before; a Mail Bot key is honored and
+  // then gated on its scope (the scope check is a no-op for human principals).
+  const machineReadAuth = container.apiKeyRepo
+    ? [createApiKeyAuthMiddleware(container.apiKeyRepo, authenticate), requireScopeIfMachine(MAIL_BOT_SCOPE)]
+    : authenticate;
 
   // POST /v1/appointments — 201
   app.post(
@@ -159,7 +176,7 @@ export async function registerAppointmentRoutes(
   app.get(
     '/v1/appointments',
     {
-      preHandler: authenticate,
+      preHandler: machineReadAuth,
       schema: {
         querystring: listAppointmentsQuerySchema,
         response: { 200: paginatedResponseSchema(appointmentResponseSchema) },

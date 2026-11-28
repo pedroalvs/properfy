@@ -6,6 +6,7 @@ import type {
   ImportSummary,
 } from '@properfy/shared';
 import { buildNormalizedAddressKey } from '../../../../shared/domain/normalize-address';
+import { dropDuplicateLine2 } from '../../../../shared/domain/geocoding-address';
 
 /** Structural row shape shared by the property and appointment import
  * resolvers — just what the geocode post-pass needs to read and mutate. */
@@ -16,14 +17,24 @@ export interface GeocodeVerifiableRow {
   issues: ImportRowIssue[];
 }
 
+/** A geocode-verify request: the single-line query plus the informed suburb
+ * (rule A confirms the returned suburb matches it). */
+export interface GeocodeVerifyInput {
+  query: string;
+  suburb: string;
+  postcode: string;
+}
+
 /** The subset of ImportGeocodeVerifier this post-pass depends on. */
 export interface IImportGeocodeVerifier {
-  verifyMany(addresses: Map<string, string>): Promise<Map<string, GeocodeVerification>>;
+  verifyMany(addresses: Map<string, GeocodeVerifyInput>): Promise<Map<string, GeocodeVerification>>;
 }
 
 function fullAddress(plan: ImportPropertyPlan): string {
   const parts = [plan.street];
-  if (plan.addressLine2) parts.push(plan.addressLine2);
+  // Single shared dedup helper — drop a Line 2 that merely repeats the street.
+  const line2 = dropDuplicateLine2(plan.street, plan.addressLine2);
+  if (line2) parts.push(line2);
   parts.push(plan.suburb, plan.state, plan.postcode, plan.country);
   return parts.join(', ');
 }
@@ -54,12 +65,13 @@ export async function applyGeocodeVerification(
   rows: GeocodeVerifiableRow[],
   verifier: IImportGeocodeVerifier,
 ): Promise<void> {
-  const addresses = new Map<string, string>();
+  const addresses = new Map<string, GeocodeVerifyInput>();
   for (const row of rows) {
     const plan = row.property;
     if (!plan || plan.resolution !== 'new' || plan.duplicateOfRow !== null) continue;
     const key = planKey(plan);
-    if (!addresses.has(key)) addresses.set(key, fullAddress(plan));
+    if (!addresses.has(key))
+      addresses.set(key, { query: fullAddress(plan), suburb: plan.suburb, postcode: plan.postcode });
   }
   if (addresses.size === 0) return;
 

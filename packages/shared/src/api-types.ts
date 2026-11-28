@@ -770,10 +770,6 @@ export interface paths {
                             allowClientRescheduling?: boolean;
                             /** @default false */
                             allowClientUserManagement?: boolean;
-                            /** @default 24 */
-                            priorityOfferHours?: number;
-                            /** @default 2 */
-                            inspectorOfferRadiusKm?: number;
                             /** @default [] */
                             clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "view_financials")[];
                             emailTemplates?: {
@@ -956,10 +952,6 @@ export interface paths {
                             allowClientRescheduling?: boolean;
                             /** @default false */
                             allowClientUserManagement?: boolean;
-                            /** @default 24 */
-                            priorityOfferHours?: number;
-                            /** @default 2 */
-                            inspectorOfferRadiusKm?: number;
                             /** @default [] */
                             clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "view_financials")[];
                             emailTemplates?: {
@@ -2562,6 +2554,8 @@ export interface paths {
                         furnished?: boolean;
                         linenProvided?: boolean;
                         rentAmount?: number;
+                        latitude?: number | null;
+                        longitude?: number | null;
                         notes?: string;
                         rulesJson?: {
                             keyRequired?: boolean;
@@ -8508,6 +8502,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/service-groups/find-move-targets-for-appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                groups: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    groupNumber: number;
+                                    code: string;
+                                    status: string;
+                                    scheduledDate: string;
+                                    timeWindow: string;
+                                    currentSize: number;
+                                    serviceTypeName: string | null;
+                                    isCurrentDay: boolean;
+                                }[];
+                                /** @enum {string} */
+                                reason?: "MIXED_APPOINTMENT_PROPERTIES" | "INVALID_APPOINTMENT_STATUS" | "NOT_GROUPED";
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/move-appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "NOT_GROUPED" | "SOURCE_GROUP_NOT_ACTIVE" | "ALREADY_IN_TARGET" | "INVALID_STATUS" | "INVALID_SERVICE_TYPE" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "INSPECTOR_INELIGIBLE" | "TARGET_DATE_INELIGIBLE" | "NOT_FOUND" | "ERROR";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                                movedCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/service-groups/{groupId}/portal-link-plan": {
         parameters: {
             query?: never;
@@ -11307,6 +11416,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -11484,6 +11594,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -11748,6 +11859,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -11903,6 +12015,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -12071,6 +12184,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -12222,346 +12336,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/day-plans/{inspectorId}/{date}/recalculate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    inspectorId: string;
-                    date: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                inspectorId: string;
-                                inspectorName: string;
-                                date: string;
-                                timezone: string;
-                                /** @enum {string} */
-                                status: "DRAFT" | "PUBLISHED" | "STALE";
-                                version: number;
-                                publishedAt: (string) | null;
-                                computedAt: string;
-                                /** @enum {string} */
-                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
-                                approximate: boolean;
-                                /** @enum {string|null} */
-                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
-                                /** @enum {string} */
-                                routingProvider: "MAPBOX" | "STUB";
-                                /** @enum {string|null} */
-                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
-                                /** @enum {string} */
-                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
-                                origin: {
-                                    /** @enum {string} */
-                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
-                                    label: string | null;
-                                    lat: number | null;
-                                    lng: number | null;
-                                };
-                                /** @enum {string|null} */
-                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
-                                originOverride: {
-                                    address: {
-                                        street: string;
-                                        number?: string;
-                                        complement?: string;
-                                        suburb: string;
-                                        city: string;
-                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
-                                        postcode: string;
-                                        /**
-                                         * @default AU
-                                         * @enum {string}
-                                         */
-                                        country: "AU";
-                                    };
-                                    setAt: string;
-                                } | null;
-                                departureAt: (string) | null;
-                                finishEta: (string) | null;
-                                totals: {
-                                    driveS: number;
-                                    waitS: number;
-                                    serviceS: number;
-                                    lateS: number;
-                                    distanceM: number | null;
-                                };
-                                feasible: boolean;
-                                violations: {
-                                    /** Format: uuid */
-                                    appointmentId: string;
-                                    lateS: number;
-                                }[];
-                                manualOrder: boolean;
-                                suggestedOrder: string[];
-                                stops: {
-                                    /** Format: uuid */
-                                    appointmentId: string;
-                                    sequence: number;
-                                    appointmentCode: string;
-                                    agencyName: string;
-                                    /** @enum {string} */
-                                    appointmentStatus: "SCHEDULED" | "DONE";
-                                    /** @enum {string} */
-                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
-                                    eta: (string) | null;
-                                    serviceStartAt: (string) | null;
-                                    serviceEndAt: (string) | null;
-                                    travelS: number;
-                                    distanceM: number | null;
-                                    waitS: number;
-                                    lateS: number;
-                                    windowStart: string;
-                                    windowEnd: string;
-                                    windowStartAt: string;
-                                    windowEndAt: string;
-                                    timezone: string;
-                                    durationMinutes: number;
-                                    manual: boolean;
-                                    executed: boolean;
-                                    approximate: boolean;
-                                    missingCoordinates: boolean;
-                                    lat: number | null;
-                                    lng: number | null;
-                                    propertyAddress: string;
-                                    suburb: string;
-                                    serviceTypeName: string;
-                                    keyRequired: boolean;
-                                    meetingLocation: string | null;
-                                    rentalTenantConfirmationStatus: string;
-                                    primaryContact: {
-                                        name: string;
-                                        phone: string | null;
-                                        /** @enum {string} */
-                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
-                                    } | null;
-                                }[];
-                                geometry: {
-                                    /** @enum {string} */
-                                    type: "FeatureCollection";
-                                    features: {
-                                        /** @enum {string} */
-                                        type: "Feature";
-                                        geometry: {
-                                            /** @enum {string} */
-                                            type: "LineString";
-                                            coordinates: [
-                                                number,
-                                                number
-                                            ][];
-                                        };
-                                        properties: {
-                                            fromSequence: number;
-                                            toSequence: number;
-                                            approximate: boolean;
-                                        };
-                                    }[];
-                                } | null;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/day-plans/{inspectorId}/{date}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    inspectorId: string;
-                    date: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                inspectorId: string;
-                                inspectorName: string;
-                                date: string;
-                                timezone: string;
-                                /** @enum {string} */
-                                status: "DRAFT" | "PUBLISHED" | "STALE";
-                                version: number;
-                                publishedAt: (string) | null;
-                                computedAt: string;
-                                /** @enum {string} */
-                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
-                                approximate: boolean;
-                                /** @enum {string|null} */
-                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
-                                /** @enum {string} */
-                                routingProvider: "MAPBOX" | "STUB";
-                                /** @enum {string|null} */
-                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
-                                /** @enum {string} */
-                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
-                                origin: {
-                                    /** @enum {string} */
-                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
-                                    label: string | null;
-                                    lat: number | null;
-                                    lng: number | null;
-                                };
-                                /** @enum {string|null} */
-                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
-                                originOverride: {
-                                    address: {
-                                        street: string;
-                                        number?: string;
-                                        complement?: string;
-                                        suburb: string;
-                                        city: string;
-                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
-                                        postcode: string;
-                                        /**
-                                         * @default AU
-                                         * @enum {string}
-                                         */
-                                        country: "AU";
-                                    };
-                                    setAt: string;
-                                } | null;
-                                departureAt: (string) | null;
-                                finishEta: (string) | null;
-                                totals: {
-                                    driveS: number;
-                                    waitS: number;
-                                    serviceS: number;
-                                    lateS: number;
-                                    distanceM: number | null;
-                                };
-                                feasible: boolean;
-                                violations: {
-                                    /** Format: uuid */
-                                    appointmentId: string;
-                                    lateS: number;
-                                }[];
-                                manualOrder: boolean;
-                                suggestedOrder: string[];
-                                stops: {
-                                    /** Format: uuid */
-                                    appointmentId: string;
-                                    sequence: number;
-                                    appointmentCode: string;
-                                    agencyName: string;
-                                    /** @enum {string} */
-                                    appointmentStatus: "SCHEDULED" | "DONE";
-                                    /** @enum {string} */
-                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
-                                    eta: (string) | null;
-                                    serviceStartAt: (string) | null;
-                                    serviceEndAt: (string) | null;
-                                    travelS: number;
-                                    distanceM: number | null;
-                                    waitS: number;
-                                    lateS: number;
-                                    windowStart: string;
-                                    windowEnd: string;
-                                    windowStartAt: string;
-                                    windowEndAt: string;
-                                    timezone: string;
-                                    durationMinutes: number;
-                                    manual: boolean;
-                                    executed: boolean;
-                                    approximate: boolean;
-                                    missingCoordinates: boolean;
-                                    lat: number | null;
-                                    lng: number | null;
-                                    propertyAddress: string;
-                                    suburb: string;
-                                    serviceTypeName: string;
-                                    keyRequired: boolean;
-                                    meetingLocation: string | null;
-                                    rentalTenantConfirmationStatus: string;
-                                    primaryContact: {
-                                        name: string;
-                                        phone: string | null;
-                                        /** @enum {string} */
-                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
-                                    } | null;
-                                }[];
-                                geometry: {
-                                    /** @enum {string} */
-                                    type: "FeatureCollection";
-                                    features: {
-                                        /** @enum {string} */
-                                        type: "Feature";
-                                        geometry: {
-                                            /** @enum {string} */
-                                            type: "LineString";
-                                            coordinates: [
-                                                number,
-                                                number
-                                            ][];
-                                        };
-                                        properties: {
-                                            fromSequence: number;
-                                            toSequence: number;
-                                            approximate: boolean;
-                                        };
-                                    }[];
-                                } | null;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/inspector/day-plans/{date}/sheet": {
         parameters: {
             query?: never;
@@ -12576,44 +12350,6 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    date: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/day-plans/{inspectorId}/{date}/sheet": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query: {
-                    format: "pdf" | "xlsx";
-                };
-                header?: never;
-                path: {
-                    inspectorId: string;
                     date: string;
                 };
                 cookie?: never;
@@ -13807,6 +13543,7 @@ export interface paths {
                                     /** @enum {string} */
                                     status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
                                     snapshotDate: string | null;
+                                    minimumVolume: number;
                                 };
                                 /** @enum {string|null} */
                                 level: "BRONZE" | "SILVER" | "GOLD" | null;
@@ -16535,107 +16272,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/notifications/consents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/consents/{consentId}/override": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    consentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/consents/opt-out": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/notification-templates/{templateCode}/{channel}/test-send": {
         parameters: {
             query?: never;
@@ -18246,7 +17882,7 @@ export interface paths {
                             data: {
                                 integrations: {
                                     /** @enum {string} */
-                                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                                    provider: "resend" | "mobile_message" | "mapbox";
                                     configured: boolean;
                                     /** @enum {string} */
                                     source: "database" | "env" | "none";
@@ -18297,7 +17933,7 @@ export interface paths {
                             data: {
                                 integrations: {
                                     /** @enum {string} */
-                                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                                    provider: "resend" | "mobile_message" | "mapbox";
                                     configured: boolean;
                                     /** @enum {string} */
                                     source: "database" | "env" | "none";
@@ -18330,7 +17966,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                    provider: "resend" | "mobile_message" | "mapbox";
                 };
                 cookie?: never;
             };
@@ -18354,7 +17990,7 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** @enum {string} */
-                                provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                                provider: "resend" | "mobile_message" | "mapbox";
                                 configured: boolean;
                                 /** @enum {string} */
                                 source: "database" | "env" | "none";
@@ -18376,7 +18012,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                    provider: "resend" | "mobile_message" | "mapbox";
                 };
                 cookie?: never;
             };
@@ -18416,7 +18052,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                    provider: "resend" | "mobile_message" | "mapbox";
                 };
                 cookie?: never;
             };
@@ -18509,7 +18145,7 @@ export interface paths {
                          */
                         role?: "AM" | "OP";
                         /** @default [] */
-                        scopes?: "bot:fy"[];
+                        scopes?: ("bot:fy" | "bot:mail")[];
                         /** Format: date-time */
                         expiresAt?: string | null;
                     };

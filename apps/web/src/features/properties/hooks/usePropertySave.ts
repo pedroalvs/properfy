@@ -1,5 +1,12 @@
 import { useState, useCallback } from 'react';
-import { createPropertySchema, updatePropertySchema, PropertyType } from '@properfy/shared';
+import {
+  createPropertySchema,
+  updatePropertySchema,
+  PropertyType,
+  ADDRESS_NOT_VERIFIED_CODE,
+  ADDRESS_NOT_VERIFIED_REASONS,
+  type AddressNotVerifiedReason,
+} from '@properfy/shared';
 import type { paths } from '@properfy/shared';
 import { api } from '@/services/api';
 
@@ -110,6 +117,11 @@ function toSchemaPayload(
       ...(data.branchId ? { branchId: data.branchId } : {}),
       ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
       ...(tenantId ? { tenantId } : {}),
+      // Manual pin (V2 rural escape): both present → backend stores MANUAL and
+      // does not validate the address text. An incomplete pair is omitted.
+      ...(data.latitude.trim() && data.longitude.trim()
+        ? { latitude: parseFloat(data.latitude.trim()), longitude: parseFloat(data.longitude.trim()) }
+        : {}),
     };
   }
 
@@ -155,6 +167,16 @@ export function buildPayload(
   return toSchemaPayload(data, 'edit', undefined, { initial, geocodingStatus }) as Record<string, unknown>;
 }
 
+/**
+ * The server's copy from `createPropertySchema`'s superRefine
+ * (packages/shared/src/schemas/property.ts), sentence-cased for display so it
+ * matches the other in-field messages on the screen (the server/shared 422 text
+ * is left unchanged). `toSchemaPayload` omits an incomplete manual pin, and
+ * `updatePropertySchema` has no such refine, so the schema parse never flags a lone
+ * coordinate — `validate` checks it explicitly for both modes.
+ */
+const LAT_LNG_TOGETHER_MESSAGE = 'Latitude and longitude must be provided together';
+
 function isRequiredError(issue: { code?: string; message: string }): boolean {
   return issue.code === 'invalid_type' || issue.message === 'Required';
 }
@@ -175,7 +197,22 @@ export interface SaveResult {
   error?: string;
   /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
   fieldErrors?: PropertyFormErrors;
+  /** 422 ADDRESS_NOT_VERIFIED (V-1): the reason, so the page shows the matching copy + marks the address fields. */
+  addressNotVerified?: AddressNotVerifiedReason;
   id?: string;
+  /** The created property's geocoding status, so the page can show the V4 "provider down" snackbar on PENDING. */
+  geocodingStatus?: string;
+}
+
+/** Read a 422 ADDRESS_NOT_VERIFIED reason off the error envelope, if present. */
+function readAddressNotVerified(error: unknown): AddressNotVerifiedReason | undefined {
+  const envelope = (error as { error?: { code?: string; details?: unknown } } | undefined)?.error;
+  if (envelope?.code !== ADDRESS_NOT_VERIFIED_CODE) return undefined;
+  const details = Array.isArray(envelope.details) ? envelope.details : [];
+  const reason = (details[0] as { reason?: string } | undefined)?.reason;
+  return ADDRESS_NOT_VERIFIED_REASONS.includes(reason as AddressNotVerifiedReason)
+    ? (reason as AddressNotVerifiedReason)
+    : undefined;
 }
 
 export interface UsePropertySaveReturn {
@@ -210,6 +247,16 @@ export function usePropertySave(): UsePropertySaveReturn {
       if (!data.postcode.trim()) errors.postcode = errors.postcode ?? 'Required field';
       if (!data.state) errors.state = errors.state ?? 'Required field';
     }
+    // Manual pin: an INCOMPLETE lat/lng pair must block submission and mark the
+    // MISSING field (otherwise the lone coordinate is silently dropped and the user
+    // only sees the address error again). Out-of-range values are caught by the
+    // schema above when both are filled.
+    const latFilled = data.latitude.trim() !== '';
+    const lngFilled = data.longitude.trim() !== '';
+    if (latFilled !== lngFilled) {
+      const missingField = latFilled ? 'longitude' : 'latitude';
+      errors[missingField] = errors[missingField] ?? LAT_LNG_TOGETHER_MESSAGE;
+    }
     return errors;
   }, []);
 
@@ -217,21 +264,32 @@ export function usePropertySave(): UsePropertySaveReturn {
     setIsSaving(true);
     try {
       let newId: string | undefined;
+      let newGeocodingStatus: string | undefined;
       if (propertyId) {
         const payload = toSchemaPayload(data, 'edit', undefined, editOptions ?? {});
         const { error } = await api.PATCH('/v1/properties/{propertyId}', {
           params: { path: { propertyId } },
           body: payload as UpdatePropertyBody,
         });
-        if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
+        if (error) {
+          const addressNotVerified = readAddressNotVerified(error);
+          if (addressNotVerified) return { success: false, addressNotVerified };
+          return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
+        }
       } else {
         const payload = toSchemaPayload(data, 'create', tenantIdOverride ?? user?.tenantId);
         const { data: responseData, error } = await api.POST('/v1/properties', { body: payload as CreatePropertyBody });
-        if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
-        newId = (responseData as unknown as { data?: { id?: string } })?.data?.id;
+        if (error) {
+          const addressNotVerified = readAddressNotVerified(error);
+          if (addressNotVerified) return { success: false, addressNotVerified };
+          return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
+        }
+        const created = (responseData as unknown as { data?: { id?: string; geocodingStatus?: string } })?.data;
+        newId = created?.id;
+        newGeocodingStatus = created?.geocodingStatus;
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });
-      return { success: true, id: newId };
+      return { success: true, id: newId, geocodingStatus: newGeocodingStatus };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save';
       return { success: false, error: message };

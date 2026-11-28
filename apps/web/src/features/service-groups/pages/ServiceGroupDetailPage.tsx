@@ -197,7 +197,7 @@ export function ServiceGroupDetailPage() {
       </div>
 
       <div className="rounded bg-card-bg p-6 shadow-sm">
-        <ServiceGroupDetailSections serviceGroup={serviceGroup} />
+        <ServiceGroupDetailSections serviceGroup={serviceGroup} onMoved={refetch} />
 
         {isAccepted && serviceGroup.inspectorName && (
           <div className="mt-6">

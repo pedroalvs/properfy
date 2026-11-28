@@ -49,27 +49,29 @@ function useCase(rows: LiveDayInspectorRow[] = []): GetLiveDayUseCase {
 
 // Seeds chosen so no alert fires (this stays a pure roll-up test; alert behaviour is
 // covered by derive-alerts.test.ts): on-time starts and a future not-started window.
-/** One finished stop (started + finished, not abandoned). */
+// The delay/not-started baseline is the current booking window (D-12), so each stop's
+// window is pinned via `timeSlotStart` (Sydney, scheduled 2026-11-05 = UTC+11).
+/** One finished stop (started + finished, not abandoned); window 09:00 = 22:00Z, on time. */
 const finishedStop = (appointmentId: string) =>
   makeStopRow({
     appointmentId,
-    publishedServiceStartAt: '2026-11-04T22:00:00.000Z',
+    timeSlotStart: '09:00',
     startedAt: '2026-11-04T22:00:00.000Z',
     finishedAt: '2026-11-04T22:40:00.000Z',
   });
-/** One in-progress stop (started roughly on time, not finished). */
+/** One in-progress stop (started on time, not finished); window 10:00 = 23:00Z. */
 const inProgressStop = (appointmentId: string) =>
   makeStopRow({
     appointmentId,
-    publishedServiceStartAt: '2026-11-04T22:55:00.000Z',
+    timeSlotStart: '10:00',
     startedAt: '2026-11-04T23:00:00.000Z',
     finishedAt: null,
   });
-/** One not-started stop whose window is still ahead of the fixed clock. */
+/** One not-started stop whose window (16:00 = 05:00Z) is still ahead of the fixed clock. */
 const notStartedStop = (appointmentId: string) =>
   makeStopRow({
     appointmentId,
-    publishedServiceStartAt: '2026-11-05T05:00:00.000Z',
+    timeSlotStart: '16:00',
     windowStartAt: '2026-11-05T05:00:00.000Z',
     startedAt: null,
     finishedAt: null,
@@ -278,7 +280,7 @@ describe('GetLiveDayUseCase (test 10 subset: RBAC, date, summary, envelope)', ()
               sequence: 2,
               lateS: 300,
               startedAt: null,
-              publishedServiceStartAt: '2026-11-05T05:00:00.000Z',
+              timeSlotStart: '16:00',
               windowStartAt: '2026-11-05T05:00:00.000Z',
             }),
           ],

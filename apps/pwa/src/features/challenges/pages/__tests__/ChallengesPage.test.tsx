@@ -36,7 +36,7 @@ function baseProgram(overrides: Partial<InspectorProgramResponse> = {}): Inspect
       },
     ],
     standing: {
-      index: { score: 88.3, status: 'SCORED', snapshotDate: '2026-11-08' },
+      index: { score: 88.3, status: 'SCORED', snapshotDate: '2026-11-08', minimumVolume: 10 },
       level: 'GOLD',
       streak: { cycle: 'WEEKLY', count: 3, atRisk: true },
     },
@@ -176,6 +176,37 @@ describe('ChallengesPage — Ranking tab (03.A3)', () => {
     renderWithProviders(<ChallengesPage />, { initialEntries: ['/profile/challenges?tab=ranking'] });
     await screen.findByText("You're not ranked yet");
     expect(screen.getByText("You'll appear once you have 10 jobs in the last 30 days.")).toBeInTheDocument();
+  });
+});
+
+describe('ChallengesPage — minimum services copy reflects the configured value (03.A3)', () => {
+  function standingWith(minimumVolume: number): InspectorProgramResponse['standing'] {
+    return {
+      index: { score: 88.3, status: 'SCORED', snapshotDate: '2026-11-08', minimumVolume },
+      level: 'GOLD',
+      streak: { cycle: 'WEEKLY', count: 3, atRisk: true },
+    };
+  }
+  const notRanked: InspectorProgramResponse['ranking'] = {
+    myPosition: null, myScore: null, totalRanked: 37, notRankedReason: 'NOT_ENOUGH_DATA', cohortTooSmall: false, entries: [],
+  };
+
+  it('uses the singular "1 job" on the index hint and the not-ranked copy when the minimum is 1', async () => {
+    mockProgram(baseProgram({ standing: standingWith(1), ranking: notRanked }));
+    renderWithProviders(<ChallengesPage />, { initialEntries: ['/profile/challenges?tab=results'] });
+    await screen.findByText('Based on your last 30 days. You need 1 job for a score.');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Ranking' }));
+    await screen.findByText("You'll appear once you have 1 job in the last 30 days.");
+  });
+
+  it('uses the plural "{n} jobs" when the minimum is greater than 1', async () => {
+    mockProgram(baseProgram({ standing: standingWith(14), ranking: notRanked }));
+    renderWithProviders(<ChallengesPage />, { initialEntries: ['/profile/challenges?tab=results'] });
+    await screen.findByText('Based on your last 30 days. You need 14 jobs for a score.');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Ranking' }));
+    await screen.findByText("You'll appear once you have 14 jobs in the last 30 days.");
   });
 });
 

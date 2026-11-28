@@ -27,8 +27,6 @@ function buildMinimalApp(token: string | undefined): FastifyInstance {
     dispatchEscalationsUseCase: noop,
     processUnsubscribeUseCase: noop,
     renderUnsubscribePageUseCase: { execute: vi.fn().mockReturnValue({ ok: false, reason: 'invalid' as const }) },
-    listConsentsByRecipientUseCase: noop,
-    overrideConsentUseCase: noop,
     reOptInUseCase: noop,
     jwtService: { verify: vi.fn(), signAccessToken: vi.fn() } as any,
     tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) },

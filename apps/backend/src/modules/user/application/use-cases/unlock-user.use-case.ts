@@ -7,6 +7,7 @@ import {
   UserNotLockedError,
 } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 
 export interface UnlockUserInput {
   tenantId: string;
@@ -25,13 +26,20 @@ export class UnlockUserUseCase {
   async execute(input: UnlockUserInput): Promise<void> {
     const { tenantId, userId, actor } = input;
 
-    // RBAC: AM can unlock any user; OP can unlock users in own tenant only
+    // AM and OP are both cross-tenant (root CLAUDE.md §6, DEC-003), so either
+    // can unlock an agency user. There is no internal (tenant-less) unlock
+    // route — `tenantId` is always an agency.
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'user.unlock',
       entityType: 'User',
     });
 
-    if (actor.role === 'OP' && actor.tenantId !== tenantId) {
+    // Confine only tenant-pinned roles to their own tenant via the canonical
+    // classification: `requireTenantScope` returns `undefined` for the
+    // cross-tenant AM/OP allowed here, so the OP unlock is cross-agency, and a
+    // future pinned role added to the allowlist would be confined automatically.
+    const pinnedTenant = requireTenantScope(actor, 'user.unlock');
+    if (pinnedTenant !== undefined && pinnedTenant !== tenantId) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
         'You can only unlock users from your own tenant',

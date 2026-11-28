@@ -3,9 +3,8 @@
  * the morning use case, over the real plan reader + appointment/tenant/notification
  * repos + notifier + CreateNotificationUseCase, creates the expected TENANT_ETA_*
  * rows with the correct bands; the agency rental-tenant switch and the per-agency
- * tenantEtaNoticesEnabled flag each suppress all of them. (The consent opt-out →
- * SKIPPED_OPT_OUT send path is proven in consent-email-case.integration.test.ts +
- * the send-notification unit tests.)
+ * tenantEtaNoticesEnabled flag each suppress all of them. (The consent opt-out send
+ * path was removed with the opt-out feature — decision 45.)
  */
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';

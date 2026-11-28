@@ -1,4 +1,8 @@
 import {
+  ADDRESS_NOT_VERIFIED_MESSAGES,
+  type AddressNotVerifiedReason,
+} from '@properfy/shared';
+import {
   ConflictError,
   DomainError,
   NotFoundError,
@@ -61,11 +65,20 @@ export const dayPlanAlreadyStarted = (): UnprocessableEntityError =>
     'DAY_PLAN_ALREADY_STARTED',
   );
 
-/** 422 — permanent geocoding returned no result for the day-origin address. */
-export const dayPlanOriginNotFound = (): UnprocessableEntityError =>
+/**
+ * 422 — the day-origin address could not be verified by permanent geocoding
+ * (rule A, V-4). `details[0].reason` carries the machine reason
+ * (`NOT_FOUND` / `COARSE_RESULT` / `LOW_RELEVANCE`) and the message is the
+ * matching `ADDRESS_NOT_VERIFIED_MESSAGES` headline, so the OriginSheet shows
+ * the same per-reason copy as every other address screen. The error code stays
+ * `DAY_PLAN_ORIGIN_NOT_FOUND` (the PWA keeps branching on it). Nothing is saved.
+ */
+export const dayPlanOriginNotFound = (
+  reason: AddressNotVerifiedReason,
+): UnprocessableEntityError =>
   new UnprocessableEntityError(
-    "We couldn't find this address. Check it and try again.",
-    undefined,
+    ADDRESS_NOT_VERIFIED_MESSAGES[reason].field,
+    [{ field: 'address', reason }],
     'DAY_PLAN_ORIGIN_NOT_FOUND',
   );
 

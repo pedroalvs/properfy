@@ -9,7 +9,6 @@ import { ForbiddenError } from '../../../src/shared/domain/errors';
 const mockJwtVerify = vi.fn();
 const mockListNotifications = vi.fn();
 const mockUpsertTemplate = vi.fn();
-const mockListConsents = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
   createContainer: () => createMockContainer({
@@ -32,7 +31,6 @@ vi.mock('../../../src/main/container', () => ({
       jwtService: { verify: mockJwtVerify },
       listNotificationsUseCase: { execute: mockListNotifications },
       upsertNotificationTemplateUseCase: { execute: mockUpsertTemplate },
-      listConsentsByRecipientUseCase: { execute: mockListConsents },
     },
   }),
 }));
@@ -145,33 +143,29 @@ describe('PUT /v1/notification-templates/:code/:channel — RBAC', () => {
   });
 });
 
-// ── GET /v1/notifications/consents ────────────────────────────────────────────
+// ── Consent lookup/override routes removed (opt-out feature retired, PR-1) ──────
+// These routes no longer exist; the whole consent-opt-out feature was removed.
+// A 404 here fails if either route is ever reintroduced.
 
-describe('GET /v1/notifications/consents — RBAC', () => {
-  it('allows AM', async () => {
+describe('Consent routes are removed', () => {
+  // The dedicated GET consents route is gone, so the path now falls through to the
+  // parametric `GET /v1/notifications/:notificationId` and 400s on the non-uuid id
+  // ("consents"). If the dedicated static route is ever reintroduced Fastify would
+  // prefer it over the parametric one and return 200 again — failing this test.
+  it('GET /v1/notifications/consents no longer hits a consent route (→ 400 via :notificationId)', async () => {
     mockJwtVerify.mockResolvedValue(makeAmContext());
-    mockListConsents.mockResolvedValue({ consents: [] });
     const res = await supertest(app.server)
       .get('/v1/notifications/consents?recipient=test@example.com')
       .set('Authorization', 'Bearer t');
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
   });
 
-  it('allows OP', async () => {
-    mockJwtVerify.mockResolvedValue(makeOpContext());
-    mockListConsents.mockResolvedValue({ consents: [] });
+  it('POST /v1/notifications/consents/:id/override → 404', async () => {
+    mockJwtVerify.mockResolvedValue(makeAmContext());
     const res = await supertest(app.server)
-      .get('/v1/notifications/consents?recipient=test@example.com')
-      .set('Authorization', 'Bearer t');
-    expect(res.status).toBe(200);
-  });
-
-  it('denies CL_USER', async () => {
-    mockJwtVerify.mockResolvedValue(makeClUserContext(TENANT_ID));
-    mockListConsents.mockRejectedValue(new ForbiddenError('FORBIDDEN', 'Insufficient permissions'));
-    const res = await supertest(app.server)
-      .get('/v1/notifications/consents?recipient=test@example.com')
-      .set('Authorization', 'Bearer t');
-    expect(res.status).toBe(403);
+      .post('/v1/notifications/consents/00000000-0000-0000-0000-000000000001/override')
+      .set('Authorization', 'Bearer t')
+      .send({ reason: 'x' });
+    expect(res.status).toBe(404);
   });
 });

@@ -79,4 +79,65 @@ describe('geocodeInspectorBase', () => {
     expect(result).toEqual({ failed: 'permanent_unavailable' });
     expect(logger.error).toHaveBeenCalled();
   });
+
+  // PR-18 rule A — applied to the inspector base path.
+  it('returns low_relevance for an address result with relevance < 0.8', async () => {
+    const geocoder = makeGeocoder(async () => ({
+      lat: -33.86,
+      lng: 151.2,
+      placeType: 'address',
+      relevance: 0.5,
+    }));
+    const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
+    expect(result).toEqual({ failed: 'low_relevance' });
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('returns coarse_result for a non-address result (e.g. postcode)', async () => {
+    const geocoder = makeGeocoder(async () => ({
+      lat: -33.86,
+      lng: 151.2,
+      placeType: 'postcode',
+      relevance: 0.95,
+    }));
+    const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
+    expect(result).toEqual({ failed: 'coarse_result' });
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('returns coarse_result for a locality result (part 3 decided — not a success)', async () => {
+    const geocoder = makeGeocoder(async () => ({
+      lat: -33.86,
+      lng: 151.2,
+      placeType: 'locality',
+      relevance: 0.9,
+    }));
+    const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
+    expect(result).toEqual({ failed: 'coarse_result' });
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('accepts a high-relevance address result in the matching suburb (relevance >= 0.8)', async () => {
+    const geocoder = makeGeocoder(async () => ({
+      lat: -33.86,
+      lng: 151.2,
+      placeType: 'address',
+      relevance: 0.92,
+      suburb: 'Sydney',
+    }));
+    const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
+    expect(result).toEqual({ lat: -33.86, lng: 151.2, geocodedAt: FIXED });
+  });
+
+  it('returns low_relevance when the address lands in a different suburb', async () => {
+    const geocoder = makeGeocoder(async () => ({
+      lat: -33.86,
+      lng: 151.2,
+      placeType: 'address',
+      relevance: 0.92,
+      suburb: 'North Sydney',
+    }));
+    const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
+    expect(result).toEqual({ failed: 'low_relevance' });
+  });
 });

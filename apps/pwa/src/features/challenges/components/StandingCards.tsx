@@ -1,4 +1,5 @@
 import { INSPECTOR_LEVEL_LABELS, type BillingPeriodType, type InspectorProgramResponse } from '@properfy/shared';
+import { jobsLabel } from '../lib/challenge-copy';
 
 type Standing = InspectorProgramResponse['standing'];
 
@@ -23,7 +24,7 @@ export function StandingCards({ standing }: { standing: Standing }) {
   const indexHint =
     index.status === 'NOT_COMPUTED'
       ? 'Your index will appear tomorrow.'
-      : 'Based on your last 30 days. You need 10 jobs for a score.';
+      : `Based on your last 30 days. You need ${jobsLabel(index.minimumVolume)} for a score.`;
 
   let streakValue = 'No streak yet';
   let streakHint: string | undefined;
