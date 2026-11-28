@@ -11,7 +11,7 @@ import {
 } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
-import { formatCurrency } from '@/lib/format-currency';
+import { formatCurrencyWhole } from '@/lib/format-currency';
 import {
   PROPERTY_TYPE_ICONS,
   distinctPropertyTypes,
@@ -133,12 +133,12 @@ export const OfferCard = memo(function OfferCard({
             <p className="mt-0.5 text-xs text-muted-foreground">{offer.tenantName}</p>
           </div>
           <div className="shrink-0 text-right">
-            {offer.payoutEstimate != null ? (
+            {offer.payoutFrom != null ? (
               <>
-                <p className="text-lg font-bold text-success leading-none" data-testid="payout-estimate">
-                  {formatCurrency(offer.payoutEstimate)}
+                <p className="text-lg font-bold text-success leading-none" data-testid="payout-from">
+                  From {formatCurrencyWhole(offer.payoutFrom)}
                 </p>
-                <p className="text-[10px] text-muted-foreground">est. payout</p>
+                <p className="text-[10px] text-muted-foreground">each</p>
               </>
             ) : (
               <span className="text-sm font-bold text-muted-foreground">—</span>
@@ -166,9 +166,6 @@ export const OfferCard = memo(function OfferCard({
               <Home size={13} data-testid="property-type-icon-fallback" aria-hidden="true" />
             )}
             {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
-            {offer.payoutFrom != null && (
-              <span data-testid="offer-from-price">{` · from ${formatCurrency(offer.payoutFrom)} each`}</span>
-            )}
           </span>
         </div>
 

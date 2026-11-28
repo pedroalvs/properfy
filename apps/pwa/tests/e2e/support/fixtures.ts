@@ -90,6 +90,9 @@ export const OFFER = {
   timeWindow: '09:00-11:00',
   suburbs: ['Brunswick', 'Fitzroy'],
   payoutEstimate: 240,
+  // Minimum per-inspection payout (backend always sends it); drives the card's
+  // "From $X each" headline. Matches the lowest OFFER_DETAIL.appointments payout.
+  payoutFrom: 80,
   appointmentCount: 3,
   centroid: null,
   properties: [
