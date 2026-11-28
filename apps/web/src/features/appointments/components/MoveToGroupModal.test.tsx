@@ -38,13 +38,17 @@ async function pickGroup(label: string) {
 }
 
 describe('MoveToGroupModal', () => {
-  it('moves the selected appointments and shows a success snackbar', async () => {
-    render(<MoveToGroupModal open onClose={() => {}} appointments={appts} />);
+  it('moves the selected appointments, refetches, closes and shows a success snackbar on full success', async () => {
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+    render(<MoveToGroupModal open onClose={onClose} onSuccess={onSuccess} appointments={appts} />);
     await waitFor(() => expect(screen.getByLabelText('Destination group')).toBeInTheDocument());
     await pickGroup('Group 7 · 20/08/2026 · 9:00 am – 12:00 pm (3 appts)');
     fireEvent.click(screen.getByTestId('move-to-group-confirm'));
     await waitFor(() => expect(mockMove).toHaveBeenCalledWith('group-future', ['appt-1']));
     expect(mockShowSuccess).toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('warns that a current-day destination confirms the tenant', async () => {
@@ -68,7 +72,9 @@ describe('MoveToGroupModal', () => {
     await waitFor(() => expect(screen.getByTestId('move-to-group-not-grouped-banner')).toBeInTheDocument());
   });
 
-  it('renders per-item failures in the result envelope', async () => {
+  it('keeps the modal open and shows the failure envelope on a PARTIAL success (does not auto-close)', async () => {
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
     mockMove.mockResolvedValue({
       results: [
         { appointmentId: 'appt-1', status: 'OK' },
@@ -76,11 +82,14 @@ describe('MoveToGroupModal', () => {
       ],
       movedCount: 1,
     });
-    render(<MoveToGroupModal open onClose={() => {}} appointments={[...appts, { id: 'appt-2', code: 'A-2', scheduledDate: '2026-08-20' }]} />);
+    render(<MoveToGroupModal open onClose={onClose} onSuccess={onSuccess} appointments={[...appts, { id: 'appt-2', code: 'A-2', scheduledDate: '2026-08-20' }]} />);
     await waitFor(() => expect(screen.getByLabelText('Destination group')).toBeInTheDocument());
     await pickGroup('Group 7 · 20/08/2026 · 9:00 am – 12:00 pm (3 appts)');
     fireEvent.click(screen.getByTestId('move-to-group-confirm'));
     await waitFor(() => expect(screen.getByTestId('move-to-group-result')).toBeInTheDocument());
     expect(screen.getByText(/not active/)).toBeInTheDocument();
+    // Refetches (something moved) but must NOT close — the operator has to see the failure.
+    expect(onSuccess).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

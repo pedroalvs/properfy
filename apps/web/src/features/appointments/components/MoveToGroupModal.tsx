@@ -5,7 +5,7 @@ import { useFindMoveTargetGroups } from '../hooks/useFindMoveTargetGroups';
 import { useMoveAppointmentsToGroup } from '../hooks/useMoveAppointmentsToGroup';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentCodePill } from './AppointmentCodePill';
-import type { MoveTargetGroupSummary } from '@properfy/shared';
+import type { MoveTargetGroupSummary, MoveToGroupResultItem } from '@properfy/shared';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 
 function formatGroupDate(scheduledDate: string): string {
@@ -26,7 +26,12 @@ interface MoveToGroupModalProps {
   onClose: () => void;
   /** The appointments to move — must already be in a live group (backend enforces). */
   appointments: MoveToGroupAppointment[];
-  /** Called once on a successful move so the caller can clear selection / close. */
+  /**
+   * Called whenever a move changed data (including a partial success), so the caller
+   * can refetch. It must NOT close the modal — the modal closes itself via `onClose`
+   * on a full success, and stays open on a partial failure so the per-item errors
+   * remain visible.
+   */
   onSuccess?: () => void;
 }
 
@@ -36,9 +41,7 @@ type GroupsState =
   | { phase: 'ready'; groups: MoveTargetGroupSummary[]; reason?: 'MIXED_APPOINTMENT_PROPERTIES' | 'INVALID_APPOINTMENT_STATUS' | 'NOT_GROUPED' }
   | { phase: 'error' };
 
-type MoveResultState =
-  | null
-  | { results: Array<{ appointmentId: string; status: string; error?: { code: string; message: string } }> };
+type MoveResultState = null | { results: MoveToGroupResultItem[] };
 
 /**
  * Move-to-group modal — move appointments already in a live group to a different
@@ -95,11 +98,21 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
     try {
       const res = await move(selectedGroupId, appointments.map((a) => a.id));
       if (!res) return;
-      setMoveResult({ results: res.results });
-      if (res.movedCount > 0) {
-        const label = selectedGroup ? ` to group ${selectedGroup.code}` : '';
-        showSuccess(`${res.movedCount} appointment${res.movedCount === 1 ? '' : 's'} moved${label}`);
-        onSuccess?.();
+      const failures = res.results.filter((r) => r.status !== 'OK');
+      // `onSuccess` refreshes the caller's data (it must NOT close the modal) — it
+      // runs whenever anything moved, including a partial success.
+      if (res.movedCount > 0) onSuccess?.();
+      if (failures.length === 0) {
+        // Full success → announce and let the parent close.
+        if (res.movedCount > 0) {
+          const label = selectedGroup ? ` to group ${selectedGroup.code}` : '';
+          showSuccess(`${res.movedCount} appointment${res.movedCount === 1 ? '' : 's'} moved${label}`);
+        }
+        onClose();
+      } else {
+        // Partial or total failure → keep the modal open so the per-item failure
+        // envelope is actually seen (the whole point of the mixed-result response).
+        setMoveResult({ results: res.results });
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to move appointments');
@@ -109,6 +122,12 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
   return (
     <Dialog open={open} onClose={onClose} title="Move to another group" maxWidth="560px">
       <div className="space-y-3" data-testid="move-to-group-modal">
+        {appointments.length === 0 ? (
+          <p className="text-sm text-text-secondary" data-testid="move-to-group-no-selection">
+            These appointments are no longer available. Close and try again.
+          </p>
+        ) : (
+        <>
         <p className="text-sm text-text-secondary">
           Pick the group to move the {appointments.length} selected appointment{appointments.length === 1 ? '' : 's'} into.
         </p>
@@ -120,17 +139,17 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
           <p className="text-xs text-error">Failed to load available groups. Please try again.</p>
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'MIXED_APPOINTMENT_PROPERTIES' && (
-          <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="move-to-group-mixed-banner">
+          <div role="alert" className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="move-to-group-mixed-banner">
             Selected appointments don&apos;t share the same service type — refine your selection to one service type.
           </div>
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'INVALID_APPOINTMENT_STATUS' && (
-          <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="move-to-group-invalid-status-banner">
+          <div role="alert" className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="move-to-group-invalid-status-banner">
             Only <strong>Draft</strong>, <strong>Awaiting Inspector</strong> or <strong>Scheduled</strong> appointments can be moved — deselect the others and try again.
           </div>
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'NOT_GROUPED' && (
-          <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="move-to-group-not-grouped-banner">
+          <div role="alert" className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="move-to-group-not-grouped-banner">
             Only appointments already in a group can be moved. Use <strong>Add to group</strong> for ungrouped appointments.
           </div>
         )}
@@ -151,7 +170,7 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
         )}
 
         {selectedGroup?.isCurrentDay && (
-          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-testid="move-to-group-current-day-banner">
+          <div role="alert" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-testid="move-to-group-current-day-banner">
             This group is scheduled for <strong>today</strong>. The appointment{appointments.length === 1 ? '' : 's'} will be moved in as if the tenant has <strong>already confirmed</strong>.
           </div>
         )}
@@ -161,7 +180,7 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
           const hasDateMismatch = appointments.some((a) => a.scheduledDate && a.scheduledDate.slice(0, 10) !== groupDay);
           if (!hasDateMismatch) return null;
           return (
-            <div className="rounded border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800" data-testid="move-to-group-date-sync-banner">
+            <div role="status" className="rounded border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800" data-testid="move-to-group-date-sync-banner">
               Appointments on a different date will be moved to the group&apos;s date ({formatGroupDate(selectedGroup.scheduledDate)}).
             </div>
           );
@@ -186,6 +205,8 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
             )}
           </div>
         )}
+        </>
+        )}
 
         <div className="mt-2 flex justify-end gap-2">
           <button
@@ -196,7 +217,7 @@ export function MoveToGroupModal({ open, onClose, appointments, onSuccess }: Mov
           >
             {moveResult ? 'Done' : 'Cancel'}
           </button>
-          {!moveResult && (
+          {!moveResult && appointments.length > 0 && (
             <button
               type="button"
               onClick={handleMove}

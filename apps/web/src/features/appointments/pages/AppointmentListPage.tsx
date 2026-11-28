@@ -180,7 +180,6 @@ export function AppointmentListPage() {
           .filter((a) => selectedIds.includes(a.id))
           .map((a) => ({ id: a.id, code: String(a.appointmentNumber), scheduledDate: a.scheduledDate }))}
         onSuccess={() => {
-          setMoveToGroupOpen(false);
           setSelectedIds([]);
           refetch();
         }}

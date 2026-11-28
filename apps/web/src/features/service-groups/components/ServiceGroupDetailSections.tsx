@@ -139,10 +139,7 @@ export function ServiceGroupDetailSections({ serviceGroup, onMoved }: ServiceGro
           open
           onClose={() => setMoveAppt(null)}
           appointments={[moveAppt]}
-          onSuccess={() => {
-            setMoveAppt(null);
-            onMoved?.();
-          }}
+          onSuccess={() => onMoved?.()}
         />
       )}
     </div>

@@ -289,7 +289,7 @@ export function AppointmentMapPage() {
 
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { hasRole } = usePermissions();
+  const { hasRole, canPerform } = usePermissions();
   const tenantId = user?.tenantId ?? null;
   const isGlobalRole = hasRole('AM', 'OP');
 
@@ -1465,8 +1465,8 @@ export function AppointmentMapPage() {
         onAddToGroup={() => {}}
         onCreateGroup={() => {}}
         // Group drill-down: members already belong to this group, so offer moving
-        // the selected ones to a different active group.
-        onMoveToGroup={(ids) => setMoveToGroupSeedIds(ids)}
+        // the selected ones to a different active group (AM/OP only).
+        onMoveToGroup={canPerform('appointment.move_to_group') ? (ids) => setMoveToGroupSeedIds(ids) : undefined}
         onOpenDetailPanel={(id) => {
           const item = groupAppointments.find((a) => a.id === id) ?? null;
           if (!item) return;
@@ -1516,7 +1516,6 @@ export function AppointmentMapPage() {
           .filter(Boolean)
           .map((a) => ({ id: a!.id, code: a!.code, scheduledDate: a!.scheduledDate }))}
         onSuccess={() => {
-          setMoveToGroupSeedIds([]);
           queryClient.invalidateQueries({ queryKey: ['appointments-by-group'] });
           queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
           queryClient.invalidateQueries({ queryKey: ['service-groups'] });

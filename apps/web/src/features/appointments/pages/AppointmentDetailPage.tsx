@@ -615,10 +615,7 @@ export function AppointmentDetailPage() {
             code: String(appointment.appointmentNumber),
             scheduledDate: appointment.scheduledDate,
           }]}
-          onSuccess={() => {
-            setMoveToGroupOpen(false);
-            refetch();
-          }}
+          onSuccess={() => refetch()}
         />
       )}
     </div>
