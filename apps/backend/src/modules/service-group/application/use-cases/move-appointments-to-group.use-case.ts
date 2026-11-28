@@ -176,6 +176,11 @@ export class MoveAppointmentsToGroupUseCase {
       try {
         // Current-day destination → confirm on the tenant's behalf BEFORE the move,
         // so a confirm failure aborts the move (no moved-but-unconfirmed limbo).
+        // The inverse is the accepted trade-off: if the move then returns a retryable
+        // GROUP_CHANGED/APPOINTMENT_CONFLICT, the appointment stays in its source group
+        // already OPERATOR_FORCED-confirmed for its original schedule. Low impact and
+        // self-healing — `confirm` is idempotent, so the operator's retry completes the
+        // move; a pre-check here could not close the race (the move runs right after).
         if (targetIsCurrentDay) {
           try {
             await this.confirmationCycleService.confirm(apptId, appointment.tenantId, 'OPERATOR_FORCED', null);
