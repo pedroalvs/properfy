@@ -48,6 +48,30 @@ export type AddToGroupValidation =
   | { ok: true }
   | { ok: false; reasonCode: AddToGroupReason };
 
+/**
+ * Reasons a MOVE between groups can fail. Shares the target-side reasons with the
+ * add flow and adds the source-side ones that only a move can hit:
+ * `NOT_GROUPED` (the appointment is not in any group — use add-to-group instead),
+ * `SOURCE_GROUP_NOT_ACTIVE` (its current group is terminal/absent) and
+ * `ALREADY_IN_TARGET` (it is already a member of the destination).
+ */
+export type MoveToGroupReason =
+  | 'NOT_GROUPED'
+  | 'SOURCE_GROUP_NOT_ACTIVE'
+  | 'ALREADY_IN_TARGET'
+  | 'INVALID_STATUS'
+  | 'INVALID_SERVICE_TYPE'
+  | 'GROUP_IN_TERMINAL_STATE'
+  | 'GROUP_CAPACITY_EXCEEDED'
+  | 'INSPECTOR_INELIGIBLE';
+
+export type MoveToGroupValidation =
+  | { ok: true }
+  | { ok: false; reasonCode: MoveToGroupReason };
+
+/** Statuses a live group member can hold (and therefore be moved from). */
+const MOVABLE_MEMBER_STATUSES = new Set<string>(['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED']);
+
 export interface GroupForValidation {
   status: ServiceGroupStatus;
   serviceTypeId: string;
@@ -167,6 +191,49 @@ export class ServiceGroupValidator {
     }
     // Date and time window are intentionally not checked — the appointment's
     // schedule is synced to the group's on join.
+    return { ok: true };
+  }
+
+  /**
+   * Predicate for the move-between-groups flow. Unlike `canAddToGroup`, it requires
+   * the appointment to ALREADY be in a live (non-terminal) group — a move relinks an
+   * existing member, it does not add a loose one (that is the add flow). The target
+   * checks (addable / capacity / service type) mirror `canAddToGroup`;
+   * `INSPECTOR_INELIGIBLE` is enforced by the use case (ACCEPTED target), not here.
+   *
+   * `sourceGroupStatus` is the status of the appointment's current group (null when
+   * unknown/absent). The date/cutoff eligibility of the target is enforced in the use
+   * case, since it depends on `now`.
+   */
+  static canMoveToGroup(
+    appointment: AppointmentForAddValidation,
+    targetGroup: GroupForValidation,
+    targetGroupId: string,
+    sourceGroupStatus: string | null,
+  ): MoveToGroupValidation {
+    if (!ADDABLE_GROUP_STATUSES.has(targetGroup.status)) {
+      return { ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' };
+    }
+    if (targetGroup.currentSize >= GROUP_CAPACITY_DEFAULT) {
+      return { ok: false, reasonCode: 'GROUP_CAPACITY_EXCEEDED' };
+    }
+    if (appointment.serviceTypeId !== targetGroup.serviceTypeId) {
+      return { ok: false, reasonCode: 'INVALID_SERVICE_TYPE' };
+    }
+    if (!MOVABLE_MEMBER_STATUSES.has(appointment.status)) {
+      return { ok: false, reasonCode: 'INVALID_STATUS' };
+    }
+    if (appointment.serviceGroupId === null) {
+      return { ok: false, reasonCode: 'NOT_GROUPED' };
+    }
+    if (appointment.serviceGroupId === targetGroupId) {
+      return { ok: false, reasonCode: 'ALREADY_IN_TARGET' };
+    }
+    // The source must be a live group — a terminal/absent link is dead weight the
+    // add flow repairs, not a move.
+    if (sourceGroupStatus === null || isTerminalGroupStatus(sourceGroupStatus)) {
+      return { ok: false, reasonCode: 'SOURCE_GROUP_NOT_ACTIVE' };
+    }
     return { ok: true };
   }
 

@@ -244,4 +244,61 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     expect(ServiceGroupValidator.isAddableStatus('CANCELLED')).toBe(false);
     expect(ServiceGroupValidator.isAddableStatus('REJECTED')).toBe(false);
   });
+
+  describe('canMoveToGroup', () => {
+    const target = { status: 'PUBLISHED' as const, serviceTypeId: 'st-1', currentSize: 3 };
+    const TARGET_ID = 'group-target';
+    const SOURCE_ID = 'group-source';
+
+    it('accepts a live member of another active group', () => {
+      const appt = makeAppointment({ status: 'SCHEDULED', serviceGroupId: SOURCE_ID });
+      expect(ServiceGroupValidator.canMoveToGroup(appt, target, TARGET_ID, 'ACCEPTED')).toEqual({ ok: true });
+    });
+
+    it('rejects an ungrouped appointment with NOT_GROUPED', () => {
+      const appt = makeAppointment({ serviceGroupId: null });
+      expect(ServiceGroupValidator.canMoveToGroup(appt, target, TARGET_ID, null)).toEqual({
+        ok: false,
+        reasonCode: 'NOT_GROUPED',
+      });
+    });
+
+    it('rejects a member already in the target with ALREADY_IN_TARGET', () => {
+      const appt = makeAppointment({ status: 'AWAITING_INSPECTOR', serviceGroupId: TARGET_ID });
+      expect(ServiceGroupValidator.canMoveToGroup(appt, target, TARGET_ID, 'PUBLISHED')).toEqual({
+        ok: false,
+        reasonCode: 'ALREADY_IN_TARGET',
+      });
+    });
+
+    it('rejects a member whose source group is terminal with SOURCE_GROUP_NOT_ACTIVE', () => {
+      const appt = makeAppointment({ status: 'AWAITING_INSPECTOR', serviceGroupId: SOURCE_ID });
+      expect(ServiceGroupValidator.canMoveToGroup(appt, target, TARGET_ID, 'CANCELLED')).toEqual({
+        ok: false,
+        reasonCode: 'SOURCE_GROUP_NOT_ACTIVE',
+      });
+    });
+
+    it('rejects when the target is terminal', () => {
+      const appt = makeAppointment({ status: 'SCHEDULED', serviceGroupId: SOURCE_ID });
+      expect(
+        ServiceGroupValidator.canMoveToGroup(appt, { ...target, status: 'CANCELLED' }, TARGET_ID, 'ACCEPTED'),
+      ).toEqual({ ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' });
+    });
+
+    it('rejects when the target is at capacity', () => {
+      const appt = makeAppointment({ status: 'SCHEDULED', serviceGroupId: SOURCE_ID });
+      expect(
+        ServiceGroupValidator.canMoveToGroup(appt, { ...target, currentSize: 30 }, TARGET_ID, 'ACCEPTED'),
+      ).toEqual({ ok: false, reasonCode: 'GROUP_CAPACITY_EXCEEDED' });
+    });
+
+    it('rejects a service-type mismatch', () => {
+      const appt = makeAppointment({ status: 'SCHEDULED', serviceTypeId: 'st-2', serviceGroupId: SOURCE_ID });
+      expect(ServiceGroupValidator.canMoveToGroup(appt, target, TARGET_ID, 'ACCEPTED')).toEqual({
+        ok: false,
+        reasonCode: 'INVALID_SERVICE_TYPE',
+      });
+    });
+  });
 });

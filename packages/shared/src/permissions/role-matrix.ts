@@ -160,6 +160,12 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'appointment.add_to_group': {
     roles: ['AM', 'OP'],
   },
+  // Move appointments already in a live group to a different active group; OP-team
+  // only, mirroring add_to_group (group membership is operator-driven and groups
+  // are cross-tenant).
+  'appointment.move_to_group': {
+    roles: ['AM', 'OP'],
+  },
   // 026 §FR-540 — bulk reopen for reschedule; matriz 2.2 grants the
   // reschedule write surface to CL_ADMIN in addition to the OP-team.
   // BulkReopenForRescheduleUseCase enforces the 30-day window for client
