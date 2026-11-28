@@ -313,7 +313,6 @@ staging/production if a Required row is missing or a base URL is not HTTPS.
 | `MOBILE_MESSAGE_*` (4 vars) | boot-optional* | MobileMessage §4 + §2.3 |
 | `MAPBOX_ACCESS_TOKEN` | boot-optional* | Mapbox §5 (server token) |
 | `EMAIL_BCC_RECIPIENT` / `EMAIL_TEST_RECIPIENT_ALLOWLIST` | optional | §3 |
-| `FY_WEBHOOK_URL` / `FY_WEBHOOK_SECRET` | optional | Fy agent integration |
 | `PGBOSS_SCHEMA` / `NODE_ENV` / `PORT` / `LOG_LEVEL` / `JWT_ACCESS_TOKEN_TTL_MINUTES` | in fly.toml | — |
 | `AUDIT_RETENTION_BATCH_SIZE` | default 1000 | — |
 

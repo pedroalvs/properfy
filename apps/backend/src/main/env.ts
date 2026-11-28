@@ -41,9 +41,6 @@ const envSchema = z.object({
 
   // Optional webhook signature secrets (skip validation when absent — dev mode)
   RESEND_WEBHOOK_SECRET: z.string().optional(),
-  // Fy agent outbound webhooks (env fallback; DB config via Integrations Hub wins)
-  FY_WEBHOOK_URL: z.string().optional(),
-  FY_WEBHOOK_SECRET: z.string().optional(),
 
   /** Comma-separated list of email addresses allowed as test-send recipients (FR-027a) */
   EMAIL_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),

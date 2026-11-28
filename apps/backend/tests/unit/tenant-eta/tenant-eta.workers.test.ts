@@ -37,7 +37,7 @@ async function register(opts: { enabled: boolean; sendMorning: any; evaluate: an
     stub(), stub(), stub(), { execute: vi.fn().mockResolvedValue({ delivered: 0, failed: 0, unchanged: 0, errors: 0 }) } as any,
     stub(), stub(), stub(), { execute: vi.fn().mockReturnValue({ daysRemaining: 90, level: 'OK' }) } as any,
     stub(), stub(), stub(), stub(), stub(), stub(), stub(), stub(), stub(), stub(), stub(),
-    { deliver: vi.fn().mockResolvedValue(undefined) } as any, stub(), stub(), stub(), stub(),
+    stub(), stub(), stub(), stub(),
     stub(), // publishDayPlansUseCase
     opts.sendMorning, opts.evaluate, opts.sweep,
     { get: vi.fn().mockResolvedValue({ enabled: opts.enabled, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   dayPlanResponseSchema,
+  dayPlanStopSchema,
   previewDayPlanOrderRequestSchema,
   previewDayPlanOrderResponseSchema,
   DAY_PLAN_MAX_STOPS_PER_ORDER,
@@ -9,6 +10,14 @@ import {
 describe('dayPlanResponseSchema', () => {
   it('no longer carries routingInput (F04 Plan B contract phase)', () => {
     expect(Object.keys(dayPlanResponseSchema.shape)).not.toContain('routingInput');
+  });
+
+  it('carries a nullable rentalTenantNote on each stop', () => {
+    const stopShape = dayPlanStopSchema.shape;
+    expect(Object.keys(stopShape)).toContain('rentalTenantNote');
+    expect(stopShape.rentalTenantNote.safeParse('Call 30 minutes before').success).toBe(true);
+    expect(stopShape.rentalTenantNote.safeParse(null).success).toBe(true);
+    expect(stopShape.rentalTenantNote.safeParse(undefined).success).toBe(false);
   });
 });
 
