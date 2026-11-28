@@ -108,6 +108,7 @@ export function buildDayPlanResponse(
       keyRequired: c?.keyRequired ?? false,
       meetingLocation: c?.meetingLocation ?? null,
       rentalTenantConfirmationStatus: c?.rentalTenantConfirmationStatus ?? '',
+      rentalTenantNote: c?.rentalTenantNote ?? null,
       primaryContact: contact,
     };
   });

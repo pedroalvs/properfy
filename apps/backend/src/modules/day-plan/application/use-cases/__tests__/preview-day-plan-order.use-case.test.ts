@@ -26,7 +26,7 @@ function candidate(id: string, lng: number, over: Partial<DayPlanCandidate> = {}
     tenantTimezone: 'Australia/Sydney', scheduledDate: DATE, timeSlotStart: '08:00', timeSlotEnd: '17:00',
     windowStartAt: new Date('2026-11-04T21:00:00Z'), windowEndAt: new Date('2026-11-05T06:00:00Z'),
     durationMinutes: 45, serviceTypeName: 'Routine', lat: -33.88, lng, propertyAddress: 'x', suburb: 'Surry Hills',
-    keyRequired: false, meetingLocation: null, rentalTenantConfirmationStatus: 'CONFIRMED', contacts: [],
+    keyRequired: false, meetingLocation: null, rentalTenantConfirmationStatus: 'CONFIRMED', rentalTenantNote: null, contacts: [],
     startedAt: null, finishedAt: null, abandonedAt: null, ...over,
   };
 }

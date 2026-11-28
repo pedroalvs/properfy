@@ -280,46 +280,6 @@ Still escalate to a human for guarantee, per the FAQ 12 flow.
 
 ---
 
-## Webhooks (Properfy → Fy)
-
-Properfy POSTs events to the n8n URL configured in the Properfy Integrations Hub ("Integrations" tab, `Fy Agent Webhook` provider).
-
-- **Headers:** `X-Webhook-Secret: <shared secret>` (validate it!), `X-Fy-Event: <event name>`, `Content-Type: application/json`.
-- **Delivery:** respond `2xx` quickly. Non-2xx (or timeout >10s) is retried **5 times with exponential backoff**; after that the event is dropped into the failed-jobs queue for operator attention.
-- Duplicates are possible (at-least-once delivery) — de-duplicate on `data.appointmentId` + `event` + `timestamp` if needed.
-
-### `inspector.accepted` (required flow)
-
-One event **per appointment** when an inspector accepts a service group — the trigger for Fy's first proactive WhatsApp message.
-
-```json
-{
-  "event": "inspector.accepted",
-  "timestamp": "2026-07-09T10:00:00.000Z",
-  "data": {
-    "appointmentId": "6f8b3a4e-…",
-    "appointmentCode": "INS-0042",
-    "inspector": { "id": "…", "name": "Kez Anderson" }
-  }
-}
-```
-
-Follow with `GET /appointments/{id}` to fetch the tenant's phone and the confirmation link.
-
-### `appointment.status_changed`
-
-```json
-{
-  "event": "appointment.status_changed",
-  "timestamp": "2026-07-09T10:00:00.000Z",
-  "data": { "appointmentId": "6f8b3a4e-…", "fromStatus": "SCHEDULED", "toStatus": "DONE" }
-}
-```
-
-Useful for future flows (e.g. satisfaction survey on `toStatus: "DONE"`).
-
----
-
 ## Example conversation flow
 
 Tenant: *"Hi, I need to reschedule my inspection tomorrow, I'll be overseas."*
@@ -332,7 +292,5 @@ Tenant: *"Hi, I need to reschedule my inspection tomorrow, I'll be overseas."*
 ## Operational checklist for AutoLabs
 
 - [ ] Receive the `pfy_…` API key (shown once) from the Properfy admin.
-- [ ] Provide the n8n webhook URL + choose a shared secret (≥16 chars); Properfy configures both in the Integrations Hub.
-- [ ] Validate `X-Webhook-Secret` on every inbound webhook.
 - [ ] Respect the 60 req/min budget; back off on `429`.
 - [ ] Escalate to a human whenever `confirmationLink.url` is `null`, on any `5xx`, or per the FAQ escalation rules.

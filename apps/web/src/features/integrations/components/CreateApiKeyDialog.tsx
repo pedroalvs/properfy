@@ -11,19 +11,21 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useCreateApiKey } from '../hooks/useApiKeys';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
-import { FY_KEY_ROLE, FY_SCOPE } from './fyKey';
+import { FY_KEY_TYPE, type MachineKeyType } from './machineKeyType';
 
 interface CreateApiKeyDialogProps {
   open: boolean;
   onClose: () => void;
+  /** Which integration this key belongs to — fixes the role/scope and the copy. */
+  keyType?: MachineKeyType;
 }
 
 /**
  * Create flow: form dialog followed by the show-once plaintext dialog.
- * Every key is created with the `bot:fy` scope — inbound API access is
- * restricted to the Fy agent surface, there is no general machine principal.
+ * The role and scope are fixed by the integration (`keyType`) — never chosen in
+ * the UI — so inbound access stays confined to that integration's surface.
  */
-export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
+export function CreateApiKeyDialog({ open, onClose, keyType = FY_KEY_TYPE }: CreateApiKeyDialogProps) {
   const effectiveTimezone = useEffectiveTimezone();
   const { showError } = useSnackbar();
   const createKey = useCreateApiKey();
@@ -32,7 +34,7 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
   const [expiresAt, setExpiresAt] = useState('');
   const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
 
-  const scopes: ApiKeyScope[] = [FY_SCOPE];
+  const scopes: ApiKeyScope[] = [keyType.scope];
 
   const reset = () => {
     setName('');
@@ -49,7 +51,7 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
     try {
       const created = await createKey.mutateAsync({
         name: name.trim(),
-        role: FY_KEY_ROLE,
+        role: keyType.role,
         scopes,
         // End-of-day in the user's effective timezone, wherever they are located.
         expiresAt: expiresAt ? endOfCivilDayInTz(expiresAt, effectiveTimezone).toISOString() : null,
@@ -67,7 +69,7 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
       <Dialog
         open={open}
         onClose={onClose}
-        title="New Fy key"
+        title={keyType.newKeyLabel}
         actions={
           <>
             <Button variant="secondary" onClick={onClose}>
@@ -86,7 +88,7 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
               id="create-api-key-name"
               value={name}
               onChange={setName}
-              placeholder="e.g. Fy production"
+              placeholder={keyType.namePlaceholder}
               aria-label="API key name"
             />
           </label>

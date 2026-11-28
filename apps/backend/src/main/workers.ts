@@ -1,7 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { fyWebhookEventSchema, PLATFORM_TIMEZONE } from '@properfy/shared';
-import type { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
-import { FY_WEBHOOK_JOB } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
 import { withJobMetrics } from './with-job-metrics';
 import { registerDayPlanPublishWorker } from './day-plan-publish.worker';
@@ -68,7 +66,6 @@ export async function registerWorkers(
   auditRetentionWorker: AuditRetentionWorker,
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
   cancelEmptyGroupsWorker: CancelEmptyGroupsWorker,
-  fyWebhookDispatcher: FyWebhookDispatcher,
   deliverInspectorNoticeUseCase: DeliverInspectorNoticeUseCase,
   sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase,
   autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
@@ -95,12 +92,6 @@ export async function registerWorkers(
   // schedule() call alone would leave the stale cron queuing a worker-less job.
   // Unschedule it on boot — a no-op once the row is gone.
   await boss.unschedule('appointment.cancel-overdue');
-
-  await boss.work(FY_WEBHOOK_JOB, withJobMetrics(FY_WEBHOOK_JOB, async (job) => {
-    const event = fyWebhookEventSchema.parse(job.data);
-    logger.info({ event: event.event, jobId: job.id }, 'Delivering fy webhook');
-    await fyWebhookDispatcher.deliver(event);
-  }));
 
   await boss.work('report.generate', withJobMetrics('report.generate', async (job) => {
     const { reportId } = job.data as { reportId: string };

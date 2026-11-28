@@ -1,6 +1,6 @@
 import { type ReactNode, useId } from 'react';
 import { Link } from 'react-router-dom';
-import { KeyRound, MapPin } from 'lucide-react';
+import { KeyRound, MapPin, MessageSquareText } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { formatWallTimeRange, formatInstantTime, type DayPlanStop } from '@properfy/shared';
 import { Badge } from '@/components/ui/Badge';
@@ -102,6 +102,12 @@ export function StopCard({ stop, variant, actions, displayNumber, etaOverride }:
                 Location not found for this address
               </p>
             )}
+            {stop.rentalTenantNote && (
+              <p className="mt-0.5 truncate text-xs text-foreground">
+                <span className="font-semibold">Tenant note: </span>
+                {stop.rentalTenantNote}
+              </p>
+            )}
           </div>
           <span className="shrink-0 text-xs font-semibold text-muted-foreground">{status}</span>
         </Link>
@@ -131,6 +137,15 @@ export function StopCard({ stop, variant, actions, displayNumber, etaOverride }:
         {stop.suburb && <p className="text-sm text-muted-foreground">{stop.suburb}</p>}
         <p className="mt-1 text-sm text-muted-foreground">{metaLine(stop)}</p>
         <Chips stop={stop} />
+        {stop.rentalTenantNote && (
+          <p className="mt-2 flex items-start gap-1.5 text-sm text-foreground">
+            <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span>
+              <span className="font-semibold">Tenant note: </span>
+              {stop.rentalTenantNote}
+            </span>
+          </p>
+        )}
       </Link>
 
       {stop.primaryContact?.phone && (

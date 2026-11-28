@@ -75,6 +75,8 @@ export const dayPlanStopSchema = z.object({
   keyRequired: z.boolean(),
   meetingLocation: z.string().nullable(),
   rentalTenantConfirmationStatus: z.string(),
+  /** The rental tenant's free-text observation from the portal (e.g. "call 30 minutes before"). */
+  rentalTenantNote: z.string().nullable(),
   primaryContact: z
     .object({
       name: z.string(),

@@ -176,6 +176,11 @@ export class MoveAppointmentsToGroupUseCase {
       try {
         // Current-day destination → confirm on the tenant's behalf BEFORE the move,
         // so a confirm failure aborts the move (no moved-but-unconfirmed limbo).
+        // The inverse is the accepted trade-off: if the move then returns a retryable
+        // GROUP_CHANGED/APPOINTMENT_CONFLICT, the appointment stays in its source group
+        // already OPERATOR_FORCED-confirmed for its original schedule. Low impact and
+        // self-healing — `confirm` is idempotent, so the operator's retry completes the
+        // move; a pre-check here could not close the race (the move runs right after).
         if (targetIsCurrentDay) {
           try {
             await this.confirmationCycleService.confirm(apptId, appointment.tenantId, 'OPERATOR_FORCED', null);
@@ -238,27 +243,8 @@ export class MoveAppointmentsToGroupUseCase {
           metadata: { fromGroupId, toGroupId: input.groupId, previousStatus, newStatus: finalStatus },
         });
 
-        // A move can also change the member's status (e.g. SCHEDULED→AWAITING when
-        // leaving an ACCEPTED group for a DRAFT one, or the reverse). Both are legal
-        // single edges, so one transition audit is enough (no illegal direct hop).
-        if (finalStatus !== previousStatus) {
-          this.auditService.log({
-            action: 'appointment.status_transition',
-            actorType: 'USER',
-            actorId: input.actor.userId,
-            entityType: 'Appointment',
-            entityId: apptId,
-            tenantId: appointment.tenantId,
-            before: { status: previousStatus },
-            after: { status: finalStatus },
-            reason: `Moved to service group ${input.groupId}`,
-            metadata: {
-              groupId: input.groupId,
-              previousStatus,
-              ...(finalStatus === 'SCHEDULED' ? { assignedInspectorId: group.assignedInspectorId } : {}),
-            },
-          });
-        }
+        // A move can change the member's status; audit only legal state-machine edges.
+        this.auditMoveTransition(apptId, appointment.tenantId, previousStatus, finalStatus, group.assignedInspectorId, input);
 
         if (finalStatus === 'SCHEDULED') scheduledUnderInspector.push(apptId);
         results.push({ appointmentId: apptId, status: 'OK' });
@@ -299,6 +285,81 @@ export class MoveAppointmentsToGroupUseCase {
     };
     await this.idempotencyService.set(idempotencyKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
     return result;
+  }
+
+  /**
+   * Audit a move's status change as the legal state-machine edges only — never a
+   * direct illegal hop. Reaching SCHEDULED from a DRAFT/REJECTED member (moving into
+   * an ACCEPTED group) is recorded as the two legal hops the state machine defines
+   * (revival → AWAITING_INSPECTOR, then acceptance → SCHEDULED), exactly like
+   * `AddAppointmentsToGroupUseCase.auditAcceptedGroupSchedule`; the revival hop from
+   * REJECTED is an OP/AM (USER) action, from DRAFT a SYSTEM one. A SCHEDULED member
+   * leaving an ACCEPTED group for a DRAFT/PUBLISHED one reverts on the single legal
+   * `SCHEDULED → AWAITING_INSPECTOR` edge. No status change (AWAITING↔AWAITING or
+   * SCHEDULED↔SCHEDULED) writes no transition audit.
+   */
+  private auditMoveTransition(
+    appointmentId: string,
+    tenantId: string,
+    previousStatus: string,
+    finalStatus: string,
+    inspectorId: string | null,
+    input: MoveAppointmentsToGroupInput,
+  ): void {
+    if (finalStatus === previousStatus) return;
+    const base = {
+      action: 'appointment.status_transition' as const,
+      actorId: input.actor.userId,
+      entityType: 'Appointment' as const,
+      entityId: appointmentId,
+      tenantId,
+      reason: `Moved to service group ${input.groupId}`,
+    };
+
+    if (finalStatus === 'SCHEDULED') {
+      // Hop 1 — revival to AWAITING_INSPECTOR (only DRAFT/REJECTED members need it).
+      if (previousStatus === 'DRAFT') {
+        this.auditService.log({
+          ...base,
+          actorType: 'SYSTEM',
+          before: { status: 'DRAFT' },
+          after: { status: 'AWAITING_INSPECTOR' },
+          metadata: { systemTriggered: true, groupId: input.groupId, previousStatus: 'DRAFT' },
+        });
+      } else if (previousStatus === 'REJECTED') {
+        this.auditService.log({
+          ...base,
+          actorType: 'USER',
+          before: { status: 'REJECTED' },
+          after: { status: 'AWAITING_INSPECTOR' },
+          metadata: { systemTriggered: false, groupId: input.groupId, previousStatus: 'REJECTED' },
+        });
+      }
+      // Hop 2 — acceptance under the target group's committed inspector.
+      this.auditService.log({
+        ...base,
+        actorType: 'SYSTEM',
+        before: { status: 'AWAITING_INSPECTOR' },
+        after: { status: 'SCHEDULED' },
+        metadata: {
+          systemTriggered: true,
+          groupId: input.groupId,
+          previousStatus: 'AWAITING_INSPECTOR',
+          assignedInspectorId: inspectorId,
+        },
+      });
+      return;
+    }
+
+    // SCHEDULED → AWAITING_INSPECTOR (a SCHEDULED member leaving an ACCEPTED source for
+    // a DRAFT/PUBLISHED target) — a single legal edge, operator-initiated.
+    this.auditService.log({
+      ...base,
+      actorType: 'USER',
+      before: { status: previousStatus },
+      after: { status: finalStatus },
+      metadata: { groupId: input.groupId, previousStatus },
+    });
   }
 
   private async isInspectorEligible(

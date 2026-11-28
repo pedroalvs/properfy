@@ -210,6 +210,35 @@ describe('MoveAppointmentsToGroupUseCase', () => {
     }));
   });
 
+  it('audits a DRAFT member moving into an ACCEPTED target as two legal hops, never DRAFT→SCHEDULED', async () => {
+    vi.mocked(groupRepo.findById).mockResolvedValue(
+      makeTargetGroup({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
+    );
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT', serviceGroupId: 'source-group' }),
+    );
+    vi.mocked(groupRepo.findStatusById).mockResolvedValue('DRAFT'); // live source
+    vi.mocked(groupRepo.moveAppointmentBetweenGroups).mockResolvedValue('MOVED_SCHEDULED');
+
+    const result = await makeUseCase().execute({ groupId: 'group-target', appointmentIds: ['appt-1'], actor: makeActor() });
+
+    expect(result.movedCount).toBe(1);
+    const transitions = vi.mocked(auditService.log).mock.calls
+      .map((c) => c[0])
+      .filter((e) => e.action === 'appointment.status_transition');
+    // No illegal direct edge.
+    expect(transitions).not.toContainEqual(
+      expect.objectContaining({ before: { status: 'DRAFT' }, after: { status: 'SCHEDULED' } }),
+    );
+    // Two legal hops instead.
+    expect(transitions).toContainEqual(
+      expect.objectContaining({ before: { status: 'DRAFT' }, after: { status: 'AWAITING_INSPECTOR' }, actorType: 'SYSTEM' }),
+    );
+    expect(transitions).toContainEqual(
+      expect.objectContaining({ before: { status: 'AWAITING_INSPECTOR' }, after: { status: 'SCHEDULED' } }),
+    );
+  });
+
   it('force-confirms the tenant BEFORE the move when the target is scheduled for today (Sydney)', async () => {
     vi.mocked(groupRepo.findById).mockResolvedValue(
       makeTargetGroup({ scheduledDate: new Date('2026-08-10T00:00:00.000Z') }), // today for BEFORE_CUTOFF

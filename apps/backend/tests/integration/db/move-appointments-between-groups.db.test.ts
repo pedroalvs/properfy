@@ -138,6 +138,28 @@ describe('moveAppointmentBetweenGroups (real DB)', () => {
     expect(tgt.confirmed_count).toBe(1);
   });
 
+  it('decrements the source confirmed_count when a SCHEDULED member leaves an ACCEPTED source for a PUBLISHED target', async () => {
+    const source = await seedGroup(prisma, fx, serviceTypeId, 'ACCEPTED', FUTURE, { inspectorId, confirmedCount: 1 });
+    const target = await seedGroup(prisma, fx, serviceTypeId, 'PUBLISHED', FUTURE_2);
+    const apptId = await seedMember(prisma, fx, serviceTypeId, source, 'SCHEDULED', inspectorId, FUTURE);
+
+    const outcome = await repo.moveAppointmentBetweenGroups({
+      appointmentId: apptId, fromGroupId: source, toGroupId: target, expectedTargetInspectorId: null,
+    });
+
+    expect(outcome).toBe('MOVED_AWAITING');
+    const appt = await prisma.appointment.findUniqueOrThrow({ where: { id: apptId } });
+    expect(appt.service_group_id).toBe(target);
+    expect(appt.status).toBe('AWAITING_INSPECTOR');
+    expect(appt.inspector_id).toBeNull();
+    const [src, tgt] = await Promise.all([
+      prisma.serviceGroup.findUniqueOrThrow({ where: { id: source } }),
+      prisma.serviceGroup.findUniqueOrThrow({ where: { id: target } }),
+    ]);
+    expect(src.confirmed_count).toBe(0); // decremented when leaving the ACCEPTED source
+    expect(tgt.confirmed_count).toBe(0); // a PUBLISHED target never increments
+  });
+
   it('moves an AWAITING member into a PUBLISHED group (stays AWAITING, inspector cleared)', async () => {
     const source = await seedGroup(prisma, fx, serviceTypeId, 'PUBLISHED', FUTURE);
     const target = await seedGroup(prisma, fx, serviceTypeId, 'PUBLISHED', FUTURE_2);
