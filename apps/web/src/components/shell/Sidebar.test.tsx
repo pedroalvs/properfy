@@ -12,6 +12,9 @@ vi.mock('./SidebarItem', () => ({
 vi.mock('./SidebarSubmenu', () => ({
   SidebarSubmenu: ({ label }: { label: string }) => <div>{label}</div>,
 }));
+vi.mock('./SidebarCreateButton', () => ({
+  SidebarCreateButton: () => <div>SidebarCreateButton</div>,
+}));
 vi.mock('./SidebarUser', () => ({
   SidebarUser: () => <div>SidebarUser</div>,
 }));
@@ -148,5 +151,40 @@ describe('filterNavItems — collapseIfSingle', () => {
     expect(dashboardChildren('CL_ADMIN')).not.toContain('/goals-rewards');
     expect(dashboardChildren('CL_USER')).not.toContain('/goals-rewards');
     expect(dashboardChildren('INSP')).not.toContain('/goals-rewards');
+  });
+});
+
+// The Appointments group gives /appointments and /service-groups a direct sidebar route.
+// Children mirror their route AuthGuards; collapseIfSingle gives CL_* a plain Appointments link.
+describe('filterNavItems — Appointments group', () => {
+  const apptGroup = (role: string) =>
+    filterNavItems(NAV_ITEMS, role).find((item) => item.label === 'Appointments');
+
+  it.each(['AM', 'OP'])('%s sees Appointments + Service Groups children', (role) => {
+    expect(apptGroup(role)?.submenu?.map((c) => c.to)).toEqual(['/appointments', '/service-groups']);
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'])('%s collapses to a plain Appointments link to /appointments', (role) => {
+    const group = apptGroup(role)!;
+    expect(group.submenu).toBeUndefined();
+    expect(group.to).toBe('/appointments');
+    expect(group.label).toBe('Appointments');
+  });
+
+  it('CL_* never see Service Groups (AM/OP-only child)', () => {
+    expect(apptGroup('CL_ADMIN')?.submenu).toBeUndefined();
+    expect(apptGroup('CL_USER')?.submenu).toBeUndefined();
+  });
+
+  it('INSP sees no Appointments group', () => {
+    expect(apptGroup('INSP')).toBeUndefined();
+  });
+
+  // Presence + relative order by label (never absolute index or count): the group sits
+  // immediately after Map.
+  it('appears right after Map in the nav order', () => {
+    const labels = filterNavItems(NAV_ITEMS, 'AM').map((item) => item.label);
+    expect(labels).toContain('Appointments');
+    expect(labels.indexOf('Appointments')).toBe(labels.indexOf('Map') + 1);
   });
 });
