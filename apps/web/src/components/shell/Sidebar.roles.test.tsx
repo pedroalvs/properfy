@@ -351,7 +351,8 @@ describe('Sidebar — Appointments group & create CTA', () => {
   });
 
   // The coral ghost CTA renders for roles that can create (appointment.create), hidden otherwise.
-  it.each(['AM', 'OP', 'CL_ADMIN'])('%s: shows the New Appointment CTA', (role) => {
+  // CL_USER is included: appointment.create grants it (the flag is enforced server-side).
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('%s: shows the New Appointment CTA', (role) => {
     renderDesktop(role);
     expect(screen.getByRole('button', { name: /new appointment/i })).toBeInTheDocument();
   });
