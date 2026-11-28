@@ -3,8 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import { cn } from '@properfy/frontend-standards';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { SidebarItem } from './SidebarItem';
 import { SidebarSubmenu } from './SidebarSubmenu';
+import { SidebarCreateButton } from './SidebarCreateButton';
 import { SidebarUser } from './SidebarUser';
 import { SidebarUserMenu } from './SidebarUserMenu';
 
@@ -52,10 +54,23 @@ export const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-trophy-outline', label: 'Goals & rewards', to: '/goals-rewards', roles: [UserRole.AM, UserRole.OP] },
     ],
   },
-  // Map-first navigation: the map is the single entry point for appointments
-  // and service groups. The lists are reached from the map's "List view"
-  // toggle (appointments mode -> /appointments, groups mode -> /service-groups).
+  // The map is a visual entry point for appointments and service groups (its
+  // "List view" toggle links to /appointments and /service-groups); the
+  // Appointments group below gives those lists a direct sidebar route too.
   { icon: 'mdi-map-outline', label: 'Map', to: '/map', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
+  // Appointments group. Children mirror their route AuthGuard exactly: Appointments
+  // (all 4 agency roles) and Service Groups (AM/OP only). No `roles` on the group so
+  // CL_* keep access; collapseIfSingle gives CL_* a plain "Appointments" link (they
+  // see only that child) while AM/OP get the flyout with both.
+  {
+    icon: 'mdi-calendar-check-outline',
+    label: 'Appointments',
+    collapseIfSingle: true,
+    submenu: [
+      { icon: 'mdi-calendar-check-outline', label: 'Appointments', to: '/appointments', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
+      { icon: 'mdi-folder-multiple-outline', label: 'Service Groups', to: '/service-groups', roles: [UserRole.AM, UserRole.OP] },
+    ],
+  },
   { icon: 'mdi-home-city-outline', label: 'Properties', to: '/properties' },
   // Unified contacts registry (specs 022 + 023). The legacy /tenant-contacts
   // confirmation board was retired in 023; per-appointment confirmation
@@ -139,7 +154,11 @@ interface SidebarProps {
 
 export function Sidebar({ mobile = false, onNavigate, unseenCounts }: SidebarProps) {
   const { user } = useAuth();
+  const { canPerform } = usePermissions();
   const { pathname } = useLocation();
+  // The "New Appointment" CTA (ghost circle at the top of the rail) is an action,
+  // not a nav destination; same gate as the list/board create triggers.
+  const canCreateAppointment = canPerform('appointment.create');
   const clFlagsKey = (user?.clUserPermissions ?? []).join(',');
   const visibleItems = useMemo(
     () => filterNavItems(NAV_ITEMS, user?.role, user?.clUserPermissions),
@@ -150,7 +169,7 @@ export function Sidebar({ mobile = false, onNavigate, unseenCounts }: SidebarPro
   const isMapRoute = pathname.includes('/map');
 
   // F10: amber dots for unseen issues. Appointment issues → Map (the appointments
-  // surface; there is no Appointments nav item); property-only issues → Properties.
+  // map surface, kept here deliberately); property-only issues → Properties.
   const badgeFor = (to?: string): number | undefined => {
     if (!unseenCounts) return undefined;
     if (to === '/map') return unseenCounts.appointments;
@@ -179,6 +198,12 @@ export function Sidebar({ mobile = false, onNavigate, unseenCounts }: SidebarPro
       </div>
 
       <nav className={cn('flex flex-1 flex-col', mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 overflow-y-auto py-4 min-h-0')}>
+        {canCreateAppointment && (
+          <>
+            <SidebarCreateButton mobile={mobile} onNavigate={onNavigate} />
+            {!mobile && <span className="my-1 h-px w-8 bg-border-subtle" aria-hidden="true" />}
+          </>
+        )}
         {visibleItems.map((item) =>
           item.submenu ? (
             <SidebarSubmenu

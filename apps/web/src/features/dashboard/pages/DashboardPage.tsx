@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
 import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard, InspectorBreakdownSection } from '../components';
 import { IntegrationWarnings } from '../components/IntegrationWarnings';
-import { usePermissions } from '@/hooks/usePermissions';
 
 /**
  * Names the day the "Tomorrow" card actually reports on.
@@ -34,32 +33,13 @@ export function computeTomorrowLabel(): string {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { stats, isLoading, isError, refetch } = useDashboardStats();
-  const { canPerform } = usePermissions();
   const tomorrowLabel = computeTomorrowLabel();
-
-  // Mirrors AppointmentListPage's `canCreate` guard: the create drawer only opens
-  // for `appointment.create` holders, so hide the shortcut from anyone else (INSP
-  // lands on /dashboard too) rather than navigating to a param that gets dropped.
-  const canCreateAppointment = canPerform('appointment.create');
 
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        primaryAction={
-          canCreateAppointment
-            ? {
-                label: 'New Appointment',
-                icon: 'mdi-plus',
-                // Route to the canonical create entry point; the router redirects
-                // it to /appointments?new=1, which opens the create drawer. Going
-                // through the route keeps the `?new=1` param contract owned in one
-                // place (the router) instead of duplicating it here.
-                onClick: () => navigate('/appointments/new'),
-              }
-            : undefined
-        }
-      />
+      {/* The "New Appointment" CTA moved to the sidebar rail (global, every screen);
+          it is no longer a dashboard-header action. */}
+      <PageHeader title="Dashboard" />
 
       <IntegrationWarnings />
 

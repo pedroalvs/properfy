@@ -315,3 +315,50 @@ describe('Sidebar — Dashboard group', () => {
     expect(container?.querySelector('.bg-realty')).not.toBeNull();
   });
 });
+
+// The Appointments group (below Map) + the coral "New Appointment" CTA at the top of the rail.
+describe('Sidebar — Appointments group & create CTA', () => {
+  // AM/OP: a flyout group with Appointments + Service Groups menuitems.
+  it.each(['AM', 'OP'])('%s: Appointments is a menu group with Appointments + Service Groups', (role) => {
+    renderDesktop(role);
+    const trigger = screen.getByRole('button', { name: 'Appointments' });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    openFlyout('Appointments');
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: 'Appointments' })).toHaveAttribute('href', '/appointments');
+    expect(within(menu).getByRole('menuitem', { name: 'Service Groups' })).toHaveAttribute('href', '/service-groups');
+  });
+
+  // CL_*: Service Groups is AM/OP-only, so the group collapses to a plain Appointments link.
+  it.each(['CL_ADMIN', 'CL_USER'])('%s: Appointments collapses to a plain link, no Service Groups', (role) => {
+    renderMobile(role);
+    expect(screen.getByRole('link', { name: 'Appointments' })).toHaveAttribute('href', '/appointments');
+    expect(screen.queryByText('Service Groups')).not.toBeInTheDocument();
+  });
+
+  it('INSP sees no Appointments entry at all', () => {
+    renderMobile('INSP');
+    expect(screen.queryByText('Appointments')).not.toBeInTheDocument();
+    expect(screen.queryByText('Service Groups')).not.toBeInTheDocument();
+  });
+
+  // Relative order by label (never index/count): the group sits right after Map.
+  it('Appointments sits after Map (mobile DOM order)', () => {
+    renderMobile('AM');
+    const map = screen.getByText('Map');
+    const appointments = screen.getAllByText('Appointments')[0]!;
+    expect(map.compareDocumentPosition(appointments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // The coral ghost CTA renders for roles that can create (appointment.create), hidden otherwise.
+  // CL_USER is included: appointment.create grants it (the flag is enforced server-side).
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('%s: shows the New Appointment CTA', (role) => {
+    renderDesktop(role);
+    expect(screen.getByRole('button', { name: /new appointment/i })).toBeInTheDocument();
+  });
+
+  it('INSP: no New Appointment CTA', () => {
+    renderDesktop('INSP');
+    expect(screen.queryByRole('button', { name: /new appointment/i })).not.toBeInTheDocument();
+  });
+});
