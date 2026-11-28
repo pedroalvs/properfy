@@ -242,7 +242,10 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
           <div
             role="menu"
             aria-label={`Actions for ${code}`}
-            className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-card border border-border bg-card shadow-lg"
+            // Opens upward (bottom-full) so the menu stays inside the card body
+            // and is not clipped by the card's overflow-hidden — the kebab sits
+            // in the bottom action row, so a downward menu bled past the edge.
+            className="absolute bottom-full right-0 z-50 mb-1 w-56 overflow-hidden rounded-card border border-border bg-card shadow-lg"
           >
             {showRunningLate && (
               <button
