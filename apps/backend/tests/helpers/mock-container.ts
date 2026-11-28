@@ -206,6 +206,8 @@ export function createMockContainer(
       cancelServiceGroupUseCase: { execute: vi.fn() },
       addAppointmentsToGroupUseCase: { execute: vi.fn() },
       checkAppointmentsEligibilityForGroupUseCase: { execute: vi.fn() },
+      findMoveTargetGroupsForAppointmentsUseCase: { execute: vi.fn() },
+      moveAppointmentsToGroupUseCase: { execute: vi.fn() },
       getGroupPortalLinkPlanUseCase: { execute: vi.fn() },
       sendGroupPortalLinksUseCase: { execute: vi.fn() },
       changeGroupInspectorUseCase: { execute: vi.fn() },

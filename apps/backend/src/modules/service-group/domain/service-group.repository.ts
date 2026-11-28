@@ -481,4 +481,52 @@ export interface IServiceGroupRepository {
     currentSize: number;
     serviceTypeName: string | null;
   }>>;
+  /**
+   * Find active groups that can be a MOVE destination for a batch. Like
+   * `findAddableForAppointments` (same service type, status DRAFT/PUBLISHED/ACCEPTED,
+   * spare capacity) but with the move-specific bounds:
+   *  - `lowerBoundDate` (YYYY-MM-DD): `scheduled_date >= lowerBoundDate` — today while
+   *    still movable, otherwise tomorrow (the 18:50 Sydney cutoff is resolved by the
+   *    caller so the query stays pure).
+   *  - `excludeGroupIds`: the appointments' current groups, so a group is never its
+   *    own move target.
+   */
+  findMoveTargetsForAppointments(params: {
+    serviceTypeId: string;
+    batchSize: number;
+    lowerBoundDate: string;
+    excludeGroupIds: string[];
+  }): Promise<Array<{
+    id: string;
+    groupNumber: number;
+    code: string;
+    status: string;
+    scheduledDate: Date;
+    timeWindow: string;
+    currentSize: number;
+    serviceTypeName: string | null;
+  }>>;
+  /**
+   * Atomically relink one appointment from `fromGroupId` to `toGroupId`, reconciling
+   * its status under a `FOR UPDATE` lock on BOTH group rows (mirrors
+   * `commitAppointmentToAcceptedGroup`):
+   *  - target DRAFT/PUBLISHED → status AWAITING_INSPECTOR, inspector_id cleared;
+   *  - target ACCEPTED → status SCHEDULED, inspector_id = the group's committed
+   *    inspector, target.confirmed_count incremented;
+   *  - if the appointment was SCHEDULED in an ACCEPTED source, source.confirmed_count
+   *    is decremented.
+   *
+   * Guarded on the appointment still living in `fromGroupId` and the target still
+   * addable (and, for ACCEPTED, still committed to `expectedTargetInspectorId`).
+   * Returns:
+   *  - `MOVED_SCHEDULED` / `MOVED_AWAITING` — committed; the member's new status.
+   *  - `GROUP_CHANGED` — the target is no longer a valid destination; nothing written.
+   *  - `APPOINTMENT_CONFLICT` — the appointment left `fromGroupId` or a movable state; nothing written.
+   */
+  moveAppointmentBetweenGroups(params: {
+    appointmentId: string;
+    fromGroupId: string;
+    toGroupId: string;
+    expectedTargetInspectorId: string | null;
+  }): Promise<'MOVED_SCHEDULED' | 'MOVED_AWAITING' | 'GROUP_CHANGED' | 'APPOINTMENT_CONFLICT'>;
 }

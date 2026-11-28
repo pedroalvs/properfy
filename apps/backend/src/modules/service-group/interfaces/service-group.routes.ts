@@ -17,6 +17,10 @@ import {
   eligibilityCheckResponseSchema,
   findAddableGroupsRequestSchema,
   findAddableGroupsResponseSchema,
+  findMoveTargetsRequestSchema,
+  findMoveTargetsResponseSchema,
+  moveAppointmentsToGroupRequestSchema,
+  moveAppointmentsToGroupResponseSchema,
   getGroupPortalLinkPlanResponseSchema,
   sendGroupPortalLinksRequestSchema,
   sendGroupPortalLinksResponseSchema,
@@ -41,6 +45,9 @@ import type { RepublishServiceGroupUseCase } from '../application/use-cases/repu
 import type { AddAppointmentsToGroupUseCase } from '../application/use-cases/add-appointments-to-group.use-case';
 import type { CheckAppointmentsEligibilityForGroupUseCase } from '../application/use-cases/check-appointments-eligibility-for-group.use-case';
 import type { FindAddableGroupsForAppointmentsUseCase } from '../application/use-cases/find-addable-groups-for-appointments.use-case';
+import type { FindMoveTargetGroupsForAppointmentsUseCase } from '../application/use-cases/find-move-target-groups-for-appointments.use-case';
+import { moveTargetSummaryToWire } from '../application/use-cases/find-move-target-groups-for-appointments.use-case';
+import type { MoveAppointmentsToGroupUseCase } from '../application/use-cases/move-appointments-to-group.use-case';
 import type { GetGroupPortalLinkPlanUseCase } from '../application/use-cases/get-group-portal-link-plan.use-case';
 import type { SendGroupPortalLinksUseCase } from '../application/use-cases/send-group-portal-links.use-case';
 import type { ChangeGroupInspectorUseCase } from '../application/use-cases/change-group-inspector.use-case';
@@ -61,6 +68,8 @@ export interface ServiceGroupRouteContainer {
   addAppointmentsToGroupUseCase: AddAppointmentsToGroupUseCase;
   checkAppointmentsEligibilityForGroupUseCase: CheckAppointmentsEligibilityForGroupUseCase;
   findAddableGroupsForAppointmentsUseCase: FindAddableGroupsForAppointmentsUseCase;
+  findMoveTargetGroupsForAppointmentsUseCase: FindMoveTargetGroupsForAppointmentsUseCase;
+  moveAppointmentsToGroupUseCase: MoveAppointmentsToGroupUseCase;
   getGroupPortalLinkPlanUseCase: GetGroupPortalLinkPlanUseCase;
   sendGroupPortalLinksUseCase: SendGroupPortalLinksUseCase;
   changeGroupInspectorUseCase: ChangeGroupInspectorUseCase;
@@ -472,6 +481,76 @@ export async function registerServiceGroupRoutes(
         })),
         ...(result.reason ? { reason: result.reason } : {}),
       }));
+    },
+  );
+
+  // POST /v1/service-groups/find-move-targets-for-appointments
+  // Read-only — active groups the given (already-grouped) appointments can be MOVED
+  // into (today-or-later, today only before the 18:50 Sydney cutoff). AM/OP only.
+  app.post(
+    '/v1/service-groups/find-move-targets-for-appointments',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: findMoveTargetsRequestSchema,
+        response: { 200: successResponseSchema(findMoveTargetsResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const parsed = findMoveTargetsRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.findMoveTargetGroupsForAppointmentsUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        actor: auth,
+      });
+      return reply.status(200).send(success({
+        groups: result.groups.map(moveTargetSummaryToWire),
+        ...(result.reason ? { reason: result.reason } : {}),
+      }));
+    },
+  );
+
+  // POST /v1/service-groups/:groupId/move-appointments
+  // Move appointments that are already in a live group into this (target) group.
+  // AM/OP only; Idempotency-Key is honoured so a double-submit replays.
+  app.post(
+    '/v1/service-groups/:groupId/move-appointments',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: moveAppointmentsToGroupRequestSchema,
+        response: { 200: successResponseSchema(moveAppointmentsToGroupResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = moveAppointmentsToGroupRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const idempotencyKeyHeader = request.headers['idempotency-key'];
+      const idempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
+      const result = await container.moveAppointmentsToGroupUseCase.execute({
+        groupId: params.data.groupId,
+        appointmentIds: parsed.data.appointmentIds,
+        actor: auth,
+        idempotencyKey,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

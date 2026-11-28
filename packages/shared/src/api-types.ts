@@ -8502,6 +8502,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/service-groups/find-move-targets-for-appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                groups: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    groupNumber: number;
+                                    code: string;
+                                    status: string;
+                                    scheduledDate: string;
+                                    timeWindow: string;
+                                    currentSize: number;
+                                    serviceTypeName: string | null;
+                                    isCurrentDay: boolean;
+                                }[];
+                                /** @enum {string} */
+                                reason?: "MIXED_APPOINTMENT_PROPERTIES" | "INVALID_APPOINTMENT_STATUS" | "NOT_GROUPED";
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/move-appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "NOT_GROUPED" | "SOURCE_GROUP_NOT_ACTIVE" | "ALREADY_IN_TARGET" | "INVALID_STATUS" | "INVALID_SERVICE_TYPE" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "INSPECTOR_INELIGIBLE" | "TARGET_DATE_INELIGIBLE" | "NOT_FOUND" | "ERROR";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                                movedCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/service-groups/{groupId}/portal-link-plan": {
         parameters: {
             query?: never;

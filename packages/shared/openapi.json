@@ -20769,6 +20769,240 @@
         }
       }
     },
+    "/v1/service-groups/find-move-targets-for-appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "groupNumber": {
+                                "type": "number"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              },
+                              "timeWindow": {
+                                "type": "string"
+                              },
+                              "currentSize": {
+                                "type": "integer"
+                              },
+                              "serviceTypeName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "isCurrentDay": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "groupNumber",
+                              "code",
+                              "status",
+                              "scheduledDate",
+                              "timeWindow",
+                              "currentSize",
+                              "serviceTypeName",
+                              "isCurrentDay"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "MIXED_APPOINTMENT_PROPERTIES",
+                            "INVALID_APPOINTMENT_STATUS",
+                            "NOT_GROUPED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "groups"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/move-appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "NOT_GROUPED",
+                                  "SOURCE_GROUP_NOT_ACTIVE",
+                                  "ALREADY_IN_TARGET",
+                                  "INVALID_STATUS",
+                                  "INVALID_SERVICE_TYPE",
+                                  "GROUP_IN_TERMINAL_STATE",
+                                  "GROUP_CAPACITY_EXCEEDED",
+                                  "INSPECTOR_INELIGIBLE",
+                                  "TARGET_DATE_INELIGIBLE",
+                                  "NOT_FOUND",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "movedCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "results",
+                        "movedCount"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/service-groups/{groupId}/portal-link-plan": {
       "get": {
         "parameters": [

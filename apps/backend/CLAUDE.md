@@ -286,6 +286,51 @@ The force-confirm itself is `ForceConfirmGroupUseCase` (`service-group/applicati
 
 **Group portal links are cross-tenant for OP (O-19 Fatia 1, D1/D2/D4).** The group "Send portal link" plan (`get-group-portal-link-plan.use-case.ts`), the send (`send-group-portal-links.use-case.ts`) and the `SEND_AFTER_RESET` tenant lock in `generate-portal-token.use-case.ts` scope the member set through `requireTenantScope(actor, …)`, **never** `role === 'AM'`: cross-tenant roles (AM **and** OP — OP always has `tenantId: null`) act on every agency in the (tenant-agnostic) group, while tenant-pinned `CL_*` stay confined to their own agency. The old `rows.filter(r => r.tenantId === actor.tenantId)` matched nothing for the null-tenant OP, so the dialog showed 0 and the send fanned out nothing. The eligibility guard (`portal-link-eligibility.ts` rule 2 — agency with rental-tenant notifications off), the per-day idempotency and the audit under the appointment's agency are unchanged.
 
+### Move appointments between groups
+
+Two AM/OP-only routes (`service-group/`) relink appointments that are **already in a
+live group** to a different active group (no effect on ungrouped appointments — those
+use add-to-group):
+
+```text
+POST /v1/service-groups/find-move-targets-for-appointments   read-only destination picker
+POST /v1/service-groups/:groupId/move-appointments           (Idempotency-Key honoured) move into :groupId
+```
+
+- **Destination eligibility (`domain/group-move-eligibility.ts`):** active groups
+  (`ADDABLE_GROUP_STATUSES` = DRAFT/PUBLISHED/ACCEPTED, same service type, spare
+  capacity) scheduled **today or later**, with today's groups dropped **after the
+  18:50 Sydney cutoff** (`GROUP_MOVE_SAME_DAY_CUTOFF_LOCAL_TIME`, shared; minute-granular via
+  `zonedWallTimeToUtc`, modelled on the day-plan publication window). The lower-bound
+  date (`moveTargetLowerBoundDate`) is computed by the use case and passed to
+  `findMoveTargetsForAppointments`, which also excludes the appointments' own current
+  groups. Each returned group carries a server-authoritative `isCurrentDay` flag.
+- **`ServiceGroupValidator.canMoveToGroup`** mirrors `canAddToGroup` but **requires a
+  live, non-terminal source** (`NOT_GROUPED` / `SOURCE_GROUP_NOT_ACTIVE`) and rejects
+  `ALREADY_IN_TARGET`. `canAddToGroup` is untouched.
+- **The move itself is atomic** — `PrismaServiceGroupRepository.moveAppointmentBetweenGroups`
+  locks BOTH group rows `FOR UPDATE` (sorted-id order to avoid deadlocks, mirroring
+  `commitAppointmentToAcceptedGroup`), relinks, reconciles status (DRAFT/PUBLISHED
+  target → AWAITING_INSPECTOR + inspector cleared; ACCEPTED target → SCHEDULED under
+  the committed inspector + target `confirmed_count++`) and decrements the source
+  `confirmed_count` when the member was SCHEDULED in an ACCEPTED source. Guarded on the
+  appointment still living in the source and the target still addable/committed →
+  `GROUP_CHANGED`/`APPOINTMENT_CONFLICT` (retryable).
+- **Current-day destination ⇒ tenant force-confirmed (D3):** when the target is
+  scheduled for today (Sydney), `MoveAppointmentsToGroupUseCase` calls
+  `ConfirmationCycleService.confirm(..., 'OPERATOR_FORCED', null)` **before** the move
+  (same ordering guarantee as `ChangeGroupScheduleUseCase`'s FORCE_CONFIRM — a confirm
+  failure aborts that item's move, so no moved-but-unconfirmed job the 19:00 sweep would
+  auto-cancel). Audited `appointment.force_manual_confirmation` (`trigger:'group_move_current_day'`).
+- Per-item mixed-result envelope; `appointment.moved_between_groups` audit + a single
+  legal status-transition audit when the status changed. After the batch, each emptied
+  source group runs `CancelEmptyGroupService.cancelIfDead`, and members newly SCHEDULED
+  under the target's inspector emit `SERVICE_GROUP_EVENTS.MEMBERS_ADDED` (reuses the
+  add-to-group notification path). Idempotent via `IIdempotencyService` (scope
+  `group-move`, 2 h). New role-matrix key `appointment.move_to_group` (AM/OP). Groups are
+  tenant-agnostic, so both AM and OP resolve the group cross-tenant. **No schema change,
+  no migration.**
+
 ### Inspector field events (F03-2)
 
 Two inspector actions from the PWA, both `Idempotency-Key`-required and INSP-only:

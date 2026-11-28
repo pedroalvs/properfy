@@ -525,6 +525,8 @@ import { BulkReopenForRescheduleUseCase } from '../modules/appointment/applicati
 import { AddAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/add-appointments-to-group.use-case';
 import { CheckAppointmentsEligibilityForGroupUseCase } from '../modules/service-group/application/use-cases/check-appointments-eligibility-for-group.use-case';
 import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-addable-groups-for-appointments.use-case';
+import { FindMoveTargetGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-move-target-groups-for-appointments.use-case';
+import { MoveAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/move-appointments-to-group.use-case';
 import { GetGroupPortalLinkPlanUseCase } from '../modules/service-group/application/use-cases/get-group-portal-link-plan.use-case';
 import { SendGroupPortalLinksUseCase } from '../modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { GetAvailablePeriodsUseCase } from '../modules/billing/application/use-cases/get-available-periods.use-case';
@@ -1698,6 +1700,25 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo,
     authorizationService,
   );
+  // Move appointments already in a live group to a different active group.
+  const findMoveTargetGroupsForAppointmentsUseCase = new FindMoveTargetGroupsForAppointmentsUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
+  const moveAppointmentsToGroupUseCase = new MoveAppointmentsToGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    inspectorRepo,
+    serviceRegionRepo,
+    confirmationCycleService,
+    cancelEmptyGroupService,
+    idempotencyService,
+    domainEventBus,
+    logger,
+  );
 
   // Group "Send portal link" — preview + execute. Reuses the per-appointment
   // GeneratePortalTokenUseCase and the bulk-resend idempotency bucket.
@@ -2332,6 +2353,8 @@ export function createContainer(logger: Logger): AppContainer {
       addAppointmentsToGroupUseCase,
       checkAppointmentsEligibilityForGroupUseCase,
       findAddableGroupsForAppointmentsUseCase,
+      findMoveTargetGroupsForAppointmentsUseCase,
+      moveAppointmentsToGroupUseCase,
       getGroupPortalLinkPlanUseCase,
       sendGroupPortalLinksUseCase,
       changeGroupInspectorUseCase,
