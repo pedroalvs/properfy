@@ -37,6 +37,8 @@ export interface DayPlanCandidate {
   keyRequired: boolean;
   meetingLocation: string | null;
   rentalTenantConfirmationStatus: string;
+  /** The rental tenant's free-text observation from the portal (`appointments.rental_tenant_note`). */
+  rentalTenantNote: string | null;
   contacts: DayPlanCandidateContact[];
   startedAt: Date | null;
   finishedAt: Date | null;

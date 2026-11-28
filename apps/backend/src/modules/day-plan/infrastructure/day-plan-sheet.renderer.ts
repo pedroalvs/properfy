@@ -2,15 +2,17 @@ import PDFDocument from 'pdfkit';
 import { formatAuPhone, type DayPlanResponse } from '@properfy/shared';
 import type { IXlsxGenerator, ReportColumn } from '../../report/domain/xlsx-generator';
 
-/** The seven route-sheet columns (contract 01.A6, L-F04-10). No raw ids. */
+/** The route-sheet columns (contract 01.A6, L-F04-10). No raw ids. */
 export const DAY_PLAN_SHEET_COLUMNS: ReportColumn[] = [
   { key: 'seq', label: '#', width: 5 },
-  { key: 'window', label: 'Window', width: 18 },
-  { key: 'eta', label: 'ETA', width: 12 },
-  { key: 'address', label: 'Address', width: 42 },
-  { key: 'service', label: 'Service', width: 20 },
-  { key: 'contact', label: 'Contact', width: 28 },
-  { key: 'key', label: 'Key', width: 22 },
+  { key: 'window', label: 'Window', width: 16 },
+  { key: 'eta', label: 'ETA', width: 11 },
+  { key: 'address', label: 'Address', width: 38 },
+  { key: 'service', label: 'Service', width: 18 },
+  { key: 'agency', label: 'Agency', width: 20 },
+  { key: 'contact', label: 'Contact', width: 26 },
+  { key: 'key', label: 'Key', width: 18 },
+  { key: 'notes', label: 'Notes', width: 32 },
 ];
 
 export type DayPlanSheetFormat = 'pdf' | 'xlsx';
@@ -115,8 +117,10 @@ export function buildDayPlanSheetRows(plan: DayPlanResponse): Record<string, unk
       eta,
       address: stop.propertyAddress,
       service: stop.serviceTypeName,
+      agency: stop.agencyName,
       contact,
       key,
+      notes: stop.rentalTenantNote || EM_DASH,
     };
   });
 }

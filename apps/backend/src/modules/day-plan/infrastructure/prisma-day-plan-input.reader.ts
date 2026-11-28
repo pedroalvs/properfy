@@ -98,6 +98,7 @@ export class PrismaDayPlanInputReader implements IDayPlanInputReader {
         keyRequired: appt.key_required,
         meetingLocation: appt.meeting_location,
         rentalTenantConfirmationStatus: appt.rental_tenant_confirmation_status,
+        rentalTenantNote: appt.rental_tenant_note,
         contacts,
         startedAt: appt.execution?.started_at ?? null,
         finishedAt: appt.execution?.finished_at ?? null,

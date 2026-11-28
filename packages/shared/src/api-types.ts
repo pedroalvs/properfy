@@ -11301,6 +11301,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -11478,6 +11479,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -11742,6 +11744,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -11897,6 +11900,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;
@@ -12065,6 +12069,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     rentalTenantConfirmationStatus: string;
+                                    rentalTenantNote: string | null;
                                     primaryContact: {
                                         name: string;
                                         phone: string | null;

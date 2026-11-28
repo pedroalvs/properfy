@@ -46,6 +46,7 @@ export function buildStop(overrides: Partial<DayPlanStop> = {}): DayPlanStop {
     keyRequired: false,
     meetingLocation: null,
     rentalTenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantNote: null,
     primaryContact: { name: 'Sam Lee', phone: '+61412345678', role: 'RENTAL_TENANT' },
     ...overrides,
   };
