@@ -22,6 +22,11 @@ vi.mock('@/hooks/useEffectiveTimezone', () => ({
   useEffectiveTimezone: () => 'Australia/Sydney',
 }));
 
+// ContactsSection reads useAuth to sign SMS templates; there is no provider here.
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { name: 'Test Inspector' } }),
+}));
+
 // The field-event sheets have their own tests and need a QueryClient; stub them.
 vi.mock('@/features/field-events/components/CantDoSheet', () => ({
   CantDoSheet: ({ open }: { open: boolean }) => <div data-testid="cant-do-sheet" data-open={open} />,

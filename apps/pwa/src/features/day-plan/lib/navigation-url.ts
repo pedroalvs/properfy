@@ -24,7 +24,7 @@ export function isApplePlatform(env: NavigationEnv): boolean {
   return /Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1;
 }
 
-function resolveEnv(env?: Partial<NavigationEnv>): NavigationEnv {
+export function resolveEnv(env?: Partial<NavigationEnv>): NavigationEnv {
   return {
     userAgent: env?.userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : ''),
     maxTouchPoints:
