@@ -44392,8 +44392,7 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox",
-                                  "fy_webhook"
+                                  "mapbox"
                                 ]
                               },
                               "configured": {
@@ -44475,8 +44474,7 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox",
-                                  "fy_webhook"
+                                  "mapbox"
                                 ]
                               },
                               "configured": {
@@ -44553,8 +44551,7 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox",
-                "fy_webhook"
+                "mapbox"
               ]
             },
             "in": "path",
@@ -44578,8 +44575,7 @@
                           "enum": [
                             "resend",
                             "mobile_message",
-                            "mapbox",
-                            "fy_webhook"
+                            "mapbox"
                           ]
                         },
                         "configured": {
@@ -44638,8 +44634,7 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox",
-                "fy_webhook"
+                "mapbox"
               ]
             },
             "in": "path",
@@ -44688,8 +44683,7 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox",
-                "fy_webhook"
+                "mapbox"
               ]
             },
             "in": "path",

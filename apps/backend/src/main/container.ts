@@ -484,8 +484,6 @@ import { GetFyAvailableDatesUseCase } from '../modules/fy/application/use-cases/
 import { AddFyAppointmentNoteUseCase } from '../modules/fy/application/use-cases/add-fy-appointment-note.use-case';
 import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use-cases/update-fy-appointment-contact.use-case';
 import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
-import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
-import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/application/subscribers/notify-on-group-accepted.subscriber';
 import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/application/subscribers/notify-on-group-inspector-change.subscriber';
 import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
@@ -665,7 +663,6 @@ export interface AppContainer {
   appCredential: AppCredentialRouteContainer;
   integration: IntegrationRouteContainer;
   fy: FyRouteContainer;
-  fyWebhookDispatcher: FyWebhookDispatcher;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
@@ -849,7 +846,6 @@ export function createContainer(logger: Logger): AppContainer {
         webhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
       }),
       mapbox: compactConfig({ accessToken: env.MAPBOX_ACCESS_TOKEN }),
-      fy_webhook: compactConfig({ url: env.FY_WEBHOOK_URL, secret: env.FY_WEBHOOK_SECRET }),
     },
     logger,
   );
@@ -2007,9 +2003,6 @@ export function createContainer(logger: Logger): AppContainer {
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  // Fy outbound webhooks: subscriber enqueues, worker delivers with retry.
-  const fyWebhookDispatcher = new FyWebhookDispatcher(integrationConfigResolver);
-  new FyWebhookSubscriber(integrationConfigResolver, fyRepo, importJobQueue, logger).register(domainEventBus);
   // Rental-tenant notifications for group acceptance paths (marketplace accept
   // + manual assign), which schedule appointments outside the transition use case.
   new NotifyOnGroupAcceptedSubscriber(serviceGroupRepo, notifyOnStatusTransitionHandler, logger).register(domainEventBus);
@@ -2597,7 +2590,6 @@ export function createContainer(logger: Logger): AppContainer {
         resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),
       };
     })(),
-    fyWebhookDispatcher,
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,

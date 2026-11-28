@@ -101,7 +101,7 @@ apps/backend/
 │   │   ├── billing/
 │   │   ├── contact/
 │   │   ├── dashboard/
-│   │   ├── fy/                     # Fy agent integration (API keys, webhooks)
+│   │   ├── fy/                     # Fy agent integration (inbound API keys, bot:fy scope)
 │   │   ├── inspector/
 │   │   ├── inspector-notice/        # F02-1: notices + Web Push + SMS fallback (platform-scoped)
 │   │   ├── inspector-execution/

@@ -17767,7 +17767,7 @@ export interface paths {
                             data: {
                                 integrations: {
                                     /** @enum {string} */
-                                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                                    provider: "resend" | "mobile_message" | "mapbox";
                                     configured: boolean;
                                     /** @enum {string} */
                                     source: "database" | "env" | "none";
@@ -17818,7 +17818,7 @@ export interface paths {
                             data: {
                                 integrations: {
                                     /** @enum {string} */
-                                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                                    provider: "resend" | "mobile_message" | "mapbox";
                                     configured: boolean;
                                     /** @enum {string} */
                                     source: "database" | "env" | "none";
@@ -17851,7 +17851,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                    provider: "resend" | "mobile_message" | "mapbox";
                 };
                 cookie?: never;
             };
@@ -17875,7 +17875,7 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** @enum {string} */
-                                provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                                provider: "resend" | "mobile_message" | "mapbox";
                                 configured: boolean;
                                 /** @enum {string} */
                                 source: "database" | "env" | "none";
@@ -17897,7 +17897,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                    provider: "resend" | "mobile_message" | "mapbox";
                 };
                 cookie?: never;
             };
@@ -17937,7 +17937,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
+                    provider: "resend" | "mobile_message" | "mapbox";
                 };
                 cookie?: never;
             };
